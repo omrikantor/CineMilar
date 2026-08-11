@@ -1,4 +1,5 @@
 import "server-only";
+import { filterValidPicks } from "@/lib/candidatePool";
 
 const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta";
 const MODEL = "gemini-3.6-flash";
@@ -141,9 +142,9 @@ ${candidateList}`;
     required: ["picks"],
   });
 
-  // Never trust the model's output blindly, even when constrained by the
-  // prompt: filter picks down to ids that genuinely exist in our candidate
-  // pool before anything gets stored or shown to the user.
-  const validIds = new Set(candidates.map((c) => c.tmdbId));
-  return result.picks.filter((p) => validIds.has(p.tmdbId)).slice(0, maxPicks);
+  return filterValidPicks(
+    result.picks,
+    candidates.map((c) => c.tmdbId),
+    maxPicks
+  );
 }

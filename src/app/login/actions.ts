@@ -2,30 +2,29 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import {
+  loginCredentialsSchema,
+  signupCredentialsSchema,
+  parseCredentialsForm,
+  firstIssueMessage,
+} from "@/lib/validation";
 
 export type AuthState = {
   error?: string;
   message?: string;
 };
 
-function readCredentials(formData: FormData) {
-  const email = String(formData.get("email") ?? "").trim();
-  const password = String(formData.get("password") ?? "");
-  return { email, password };
-}
-
 export async function login(
   _prevState: AuthState,
   formData: FormData
 ): Promise<AuthState> {
-  const { email, password } = readCredentials(formData);
-
-  if (!email || !password) {
-    return { error: "Email and password are required." };
+  const parsed = loginCredentialsSchema.safeParse(parseCredentialsForm(formData));
+  if (!parsed.success) {
+    return { error: firstIssueMessage(parsed.error) };
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { error } = await supabase.auth.signInWithPassword(parsed.data);
 
   if (error) {
     return { error: error.message };
@@ -38,17 +37,13 @@ export async function signup(
   _prevState: AuthState,
   formData: FormData
 ): Promise<AuthState> {
-  const { email, password } = readCredentials(formData);
-
-  if (!email || !password) {
-    return { error: "Email and password are required." };
-  }
-  if (password.length < 6) {
-    return { error: "Password must be at least 6 characters." };
+  const parsed = signupCredentialsSchema.safeParse(parseCredentialsForm(formData));
+  if (!parsed.success) {
+    return { error: firstIssueMessage(parsed.error) };
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signUp({ email, password });
+  const { error } = await supabase.auth.signUp(parsed.data);
 
   if (error) {
     return { error: error.message };

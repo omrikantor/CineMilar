@@ -7,23 +7,18 @@ import {
   getSimilarTitles,
   discoverTitles,
   genreNamesForMediaType,
-  type TmdbSearchResult,
 } from "@/lib/tmdb";
 import { extractTasteSignals, rankCandidates } from "@/lib/gemini";
-import type { MediaType } from "@/types/database";
-
-export type RateRecommendationInput = {
-  sourceTmdbId: number;
-  sourceMediaType: MediaType;
-  candidateTmdbId: number;
-  candidateMediaType: MediaType;
-  candidateTitle: string;
-  candidatePosterPath: string | null;
-  rating: 1 | -1;
-};
+import { mergeCandidatePools } from "@/lib/candidatePool";
+import {
+  parseRecommendationRequestForm,
+  ratingSchema,
+  firstIssueMessage,
+  type RatingInput,
+} from "@/lib/validation";
 
 export async function rateRecommendation(
-  input: RateRecommendationInput
+  input: RatingInput
 ): Promise<{ error?: string }> {
   const supabase = await createClient();
   const {
@@ -33,23 +28,23 @@ export async function rateRecommendation(
   if (!user) {
     return { error: "You must be logged in." };
   }
-  if (input.rating !== 1 && input.rating !== -1) {
-    return { error: "Invalid rating." };
+
+  const parsed = ratingSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: firstIssueMessage(parsed.error) };
   }
-  if (!input.sourceTmdbId || !input.candidateTmdbId || !input.candidateTitle) {
-    return { error: "Invalid recommendation." };
-  }
+  const data = parsed.data;
 
   const { error } = await supabase.from("recommendation_feedback").upsert(
     {
       user_id: user.id,
-      source_tmdb_id: input.sourceTmdbId,
-      source_media_type: input.sourceMediaType,
-      candidate_tmdb_id: input.candidateTmdbId,
-      candidate_media_type: input.candidateMediaType,
-      candidate_title: input.candidateTitle,
-      candidate_poster_path: input.candidatePosterPath,
-      rating: input.rating,
+      source_tmdb_id: data.sourceTmdbId,
+      source_media_type: data.sourceMediaType,
+      candidate_tmdb_id: data.candidateTmdbId,
+      candidate_media_type: data.candidateMediaType,
+      candidate_title: data.candidateTitle,
+      candidate_poster_path: data.candidatePosterPath,
+      rating: data.rating,
     },
     { onConflict: "user_id,source_tmdb_id,candidate_tmdb_id" }
   );
@@ -81,26 +76,15 @@ export async function createRecommendationRequest(
     return { error: "You must be logged in." };
   }
 
-  const tmdbId = Number(formData.get("tmdbId"));
-  const mediaType = formData.get("mediaType");
-  const sourceTitle = String(formData.get("title") ?? "");
-  const reasoning = String(formData.get("reasoning") ?? "").trim();
-
-  if (!tmdbId || (mediaType !== "movie" && mediaType !== "tv")) {
-    return { error: "Please select a title from the search results." };
+  const parsed = parseRecommendationRequestForm(formData);
+  if (!parsed.success) {
+    return { error: firstIssueMessage(parsed.error) };
   }
-  if (!reasoning) {
-    return { error: "Please describe what you liked about it." };
-  }
-  if (reasoning.length > 1000) {
-    return { error: "That's a bit long — please keep it under 1000 characters." };
-  }
+  const { tmdbId, mediaType: type, title: sourceTitle, reasoning } = parsed.data;
 
   let requestId: string;
 
   try {
-    const type = mediaType as MediaType;
-
     const [sourceDetails, similarPool] = await Promise.all([
       getTitleDetails(tmdbId, type),
       getSimilarTitles(tmdbId, type, 20),
@@ -115,13 +99,11 @@ export async function createRecommendationRequest(
       15
     );
 
-    const merged = new Map<number, TmdbSearchResult>();
-    for (const item of [...similarPool, ...discoveredPool]) {
-      if (item.tmdbId !== tmdbId) {
-        merged.set(item.tmdbId, item);
-      }
-    }
-    const candidatePool = Array.from(merged.values()).slice(0, MAX_CANDIDATES);
+    const candidatePool = mergeCandidatePools(
+      [similarPool, discoveredPool],
+      tmdbId
+    ).slice(0, MAX_CANDIDATES);
+    const candidateById = new Map(candidatePool.map((c) => [c.tmdbId, c]));
 
     if (candidatePool.length === 0) {
       return { error: "Couldn't find similar titles for that pick — try another." };
@@ -163,7 +145,7 @@ export async function createRecommendationRequest(
     requestId = requestRow.id;
 
     const recommendationRows = picks.map((pick, index) => {
-      const candidate = merged.get(pick.tmdbId)!;
+      const candidate = candidateById.get(pick.tmdbId)!;
       return {
         request_id: requestId,
         tmdb_id: candidate.tmdbId,
