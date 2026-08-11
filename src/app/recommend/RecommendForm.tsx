@@ -25,11 +25,11 @@ export function RecommendForm() {
   );
 
   useEffect(() => {
-    if (!query.trim() || selected) {
-      setResults([]);
-      return;
-    }
     const handle = setTimeout(() => {
+      if (!query.trim() || selected) {
+        setResults([]);
+        return;
+      }
       fetch(`/api/tmdb/search?q=${encodeURIComponent(query)}&mediaType=${mediaType}`)
         .then((res) => res.json())
         .then((data) => setResults(data.results ?? []))

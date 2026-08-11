@@ -12,6 +12,55 @@ import {
 import { extractTasteSignals, rankCandidates } from "@/lib/gemini";
 import type { MediaType } from "@/types/database";
 
+export type RateRecommendationInput = {
+  sourceTmdbId: number;
+  sourceMediaType: MediaType;
+  candidateTmdbId: number;
+  candidateMediaType: MediaType;
+  candidateTitle: string;
+  candidatePosterPath: string | null;
+  rating: 1 | -1;
+};
+
+export async function rateRecommendation(
+  input: RateRecommendationInput
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be logged in." };
+  }
+  if (input.rating !== 1 && input.rating !== -1) {
+    return { error: "Invalid rating." };
+  }
+  if (!input.sourceTmdbId || !input.candidateTmdbId || !input.candidateTitle) {
+    return { error: "Invalid recommendation." };
+  }
+
+  const { error } = await supabase.from("recommendation_feedback").upsert(
+    {
+      user_id: user.id,
+      source_tmdb_id: input.sourceTmdbId,
+      source_media_type: input.sourceMediaType,
+      candidate_tmdb_id: input.candidateTmdbId,
+      candidate_media_type: input.candidateMediaType,
+      candidate_title: input.candidateTitle,
+      candidate_poster_path: input.candidatePosterPath,
+      rating: input.rating,
+    },
+    { onConflict: "user_id,source_tmdb_id,candidate_tmdb_id" }
+  );
+
+  if (error) {
+    return { error: "Couldn't save your rating, please try again." };
+  }
+
+  return {};
+}
+
 export type CreateRequestState = {
   error?: string;
 };

@@ -3,6 +3,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { tmdbPosterUrl } from "@/lib/tmdb";
+import { Nav } from "@/components/Nav";
+import { RateButtons } from "../RateButtons";
 import type { Recommendation, RecommendationRequest } from "@/types/database";
 
 export default async function RecommendationResultsPage({
@@ -33,8 +35,21 @@ export default async function RecommendationResultsPage({
     .order("rank_position", { ascending: true })
     .returns<Recommendation[]>();
 
+  const candidateIds = (recommendations ?? []).map((r) => r.tmdb_id);
+  const { data: feedbackRows } = await supabase
+    .from("recommendation_feedback")
+    .select("candidate_tmdb_id, rating")
+    .eq("source_tmdb_id", request.source_tmdb_id)
+    .in("candidate_tmdb_id", candidateIds.length > 0 ? candidateIds : [-1]);
+
+  const ratingByCandidateId = new Map<number, 1 | -1>(
+    (feedbackRows ?? []).map((f) => [f.candidate_tmdb_id, f.rating])
+  );
+
   return (
     <main className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
+      <Nav />
+
       <div>
         <Link href="/recommend" className="text-sm underline">
           ← New search
@@ -60,6 +75,15 @@ export default async function RecommendationResultsPage({
               <div>
                 <h2 className="font-medium">{rec.title}</h2>
                 <p className="mt-1 text-sm text-gray-600">{rec.ai_explanation}</p>
+                <RateButtons
+                  sourceTmdbId={request.source_tmdb_id}
+                  sourceMediaType={request.source_media_type}
+                  candidateTmdbId={rec.tmdb_id}
+                  candidateMediaType={rec.media_type}
+                  candidateTitle={rec.title}
+                  candidatePosterPath={rec.poster_path}
+                  initialRating={ratingByCandidateId.get(rec.tmdb_id) ?? null}
+                />
               </div>
             </div>
           );
