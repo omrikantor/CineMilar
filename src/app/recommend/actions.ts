@@ -8,7 +8,7 @@ import {
   discoverTitles,
   genreNamesForMediaType,
 } from "@/lib/tmdb";
-import { extractTasteSignals, rankCandidates } from "@/lib/gemini";
+import { extractTasteSignals, rankCandidates } from "@/lib/ai";
 import { mergeCandidatePools } from "@/lib/candidatePool";
 import {
   parseRecommendationRequestForm,

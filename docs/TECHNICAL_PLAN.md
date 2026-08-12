@@ -31,7 +31,7 @@ cinemilar/
         client.ts                    browser Supabase client
         server.ts                    server Supabase client
       tmdb.ts                        TMDB fetch helpers (server-only)
-      gemini.ts                      Gemini call + prompt construction (server-only)
+      ai.ts                      Groq call + prompt construction (server-only)
       validation.ts                  shared input validation (Zod schemas)
     types/
       database.ts                    TypeScript types matching the DB schema
@@ -82,7 +82,7 @@ See `ARCHITECTURE.md` for the full schema (`recommendation_requests`, `recommend
 1. Confirm a logged-in session exists; reject otherwise.
 2. Validate form input (title selected from autocomplete, not free-typed; reasoning text non-empty, length-capped).
 3. Fetch the source title's TMDB details and a candidate pool (TMDB "similar"/genre+keyword search), capped to a reasonable number (e.g. 15-20) to bound the AI call size.
-4. Send the candidate pool + user's reasoning to Gemini, asking it to select and rank the best-matching subset (e.g. top 6) **only from the given candidates**, with a short explanation each.
+4. Send the candidate pool + user's reasoning to Groq, asking it to select and rank the best-matching subset (e.g. top 6) **only from the given candidates**, with a short explanation each.
 5. Insert one `recommendation_requests` row and the ranked `recommendations` rows.
 6. Redirect to the results page.
 
@@ -93,7 +93,7 @@ See `ARCHITECTURE.md` for the full schema (`recommendation_requests`, `recommend
 
 ## Error handling
 
-- TMDB/Gemini calls wrapped so failures produce a friendly message ("Couldn't fetch recommendations, please try again") instead of a crash; technical detail logged server-side only.
+- TMDB/Groq calls wrapped so failures produce a friendly message ("Couldn't fetch recommendations, please try again") instead of a crash; technical detail logged server-side only.
 - `error.tsx` boundaries on `/recommend` and `/recommend/[requestId]` for unexpected failures.
 - Server Actions return a typed result (`{ ok: true, requestId }` or `{ ok: false, error: string }`) so the UI can show a specific message rather than a generic failure.
 

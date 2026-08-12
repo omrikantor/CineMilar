@@ -1,13 +1,13 @@
 import "server-only";
 import { filterValidPicks } from "@/lib/candidatePool";
 
-const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta";
-const MODEL = "gemini-3.6-flash";
+const GROQ_API_BASE = "https://api.groq.com/openai/v1";
+const MODEL = "openai/gpt-oss-20b";
 
 function apiKey(): string {
-  const key = process.env.GEMINI_API_KEY;
+  const key = process.env.GROQ_API_KEY;
   if (!key) {
-    throw new Error("GEMINI_API_KEY is not configured");
+    throw new Error("GROQ_API_KEY is not configured");
   }
   return key;
 }
@@ -21,40 +21,49 @@ function delay(ms: number) {
 
 async function generateJson<T>(
   prompt: string,
-  responseSchema: Record<string, unknown>
+  schemaName: string,
+  jsonSchema: Record<string, unknown>
 ): Promise<T> {
-  const url = `${GEMINI_API_BASE}/models/${MODEL}:generateContent?key=${apiKey()}`;
+  const url = `${GROQ_API_BASE}/chat/completions`;
 
   let lastError: Error | null = null;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey()}`,
+      },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema,
+        model: MODEL,
+        messages: [{ role: "user", content: prompt }],
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: schemaName,
+            strict: true,
+            schema: jsonSchema,
+          },
         },
       }),
     });
 
     if (res.ok) {
       const data = await res.json();
-      const text: string | undefined = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      const text: string | undefined = data.choices?.[0]?.message?.content;
       if (!text) {
-        throw new Error("Gemini returned no content");
+        throw new Error("AI provider returned no content");
       }
       return JSON.parse(text) as T;
     }
 
     const errText = await res.text();
-    lastError = new Error(`Gemini request failed (${res.status}): ${errText}`);
+    lastError = new Error(`AI request failed (${res.status}): ${errText}`);
 
-    // 429 (rate limited) and 503 (temporarily overloaded) are both cases
-    // Google's own error message describes as transient — worth a short,
-    // bounded retry rather than failing the user's request outright.
+    // 429 (rate limited) and 503 (temporarily unavailable) are both cases
+    // worth a short, bounded retry rather than failing the user's request
+    // outright.
     const canRetry = RETRYABLE_STATUS_CODES.has(res.status) && attempt < MAX_ATTEMPTS;
     if (!canRetry) {
       throw lastError;
@@ -62,7 +71,7 @@ async function generateJson<T>(
     await delay(attempt * 1000);
   }
 
-  throw lastError ?? new Error("Gemini request failed");
+  throw lastError ?? new Error("AI request failed");
 }
 
 export type TasteSignals = {
@@ -87,13 +96,14 @@ From this, extract:
 
 If nothing clearly matches, return empty arrays rather than guessing.`;
 
-  return generateJson<TasteSignals>(prompt, {
-    type: "OBJECT",
+  return generateJson<TasteSignals>(prompt, "taste_signals", {
+    type: "object",
     properties: {
-      genres: { type: "ARRAY", items: { type: "STRING" } },
-      keywords: { type: "ARRAY", items: { type: "STRING" } },
+      genres: { type: "array", items: { type: "string" } },
+      keywords: { type: "array", items: { type: "string" } },
     },
     required: ["genres", "keywords"],
+    additionalProperties: false,
   });
 }
 
@@ -146,22 +156,24 @@ Below is a list of real candidate titles. Pick the best ${maxPicks} matches for 
 Candidates:
 ${candidateList}`;
 
-  const result = await generateJson<{ picks: RankedPick[] }>(prompt, {
-    type: "OBJECT",
+  const result = await generateJson<{ picks: RankedPick[] }>(prompt, "ranked_picks", {
+    type: "object",
     properties: {
       picks: {
-        type: "ARRAY",
+        type: "array",
         items: {
-          type: "OBJECT",
+          type: "object",
           properties: {
-            tmdbId: { type: "INTEGER" },
-            explanation: { type: "STRING" },
+            tmdbId: { type: "integer" },
+            explanation: { type: "string" },
           },
           required: ["tmdbId", "explanation"],
+          additionalProperties: false,
         },
       },
     },
     required: ["picks"],
+    additionalProperties: false,
   });
 
   return filterValidPicks(

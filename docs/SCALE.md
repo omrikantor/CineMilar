@@ -2,7 +2,7 @@
 
 ## What happens with tens or hundreds of users
 
-The heaviest cost per user action isn't the database - it's the recommendation pipeline itself: each request to `/recommend` triggers up to ~2 Gemini calls and 4-5 TMDB calls in sequence, which is why a single recommendation currently takes roughly 10-15 seconds end-to-end (observed during manual testing). At dozens or low hundreds of users, Vercel's serverless functions scale automatically to handle concurrent requests, and Supabase's managed Postgres comfortably handles that level of read/write load - so the app itself wouldn't fall over. The real bottleneck at that scale is **cost and latency of the AI/TMDB calls**, not infrastructure capacity.
+The heaviest cost per user action isn't the database - it's the recommendation pipeline itself: each request to `/recommend` triggers up to ~2 Groq calls and 4-5 TMDB calls in sequence, which is why a single recommendation currently takes roughly 10-15 seconds end-to-end (observed during manual testing). At dozens or low hundreds of users, Vercel's serverless functions scale automatically to handle concurrent requests, and Supabase's managed Postgres comfortably handles that level of read/write load - so the app itself wouldn't fall over. The real bottleneck at that scale is **cost and latency of the AI/TMDB calls**, not infrastructure capacity.
 
 ## Heavy queries
 
@@ -29,11 +29,11 @@ Both `/history` and `/saved` are paginated (10 and 12 items per page respectivel
 
 ## Client/server separation
 
-Every page is a Server Component by default; the only Client Components are the ones that genuinely need interactivity - the search-and-submit form, the like/dislike buttons. All TMDB/Gemini calls, all validation, and all database writes happen server-side; the browser never holds API keys and never does the "heavy lifting" of filtering or aggregating data - it only renders what the server already decided to send it.
+Every page is a Server Component by default; the only Client Components are the ones that genuinely need interactivity - the search-and-submit form, the like/dislike buttons. All TMDB/Groq calls, all validation, and all database writes happen server-side; the browser never holds API keys and never does the "heavy lifting" of filtering or aggregating data - it only renders what the server already decided to send it.
 
 ## Current limitations
 
-- **No rate limiting** on `createRecommendationRequest` - nothing currently stops a single user (or a script) from submitting requests in a tight loop, each one costing real TMDB/Gemini API usage. At low/personal scale this is a non-issue; at real scale it's the first thing to fix (see Security doc).
+- **No rate limiting** on `createRecommendationRequest` - nothing currently stops a single user (or a script) from submitting requests in a tight loop, each one costing real TMDB/Groq API usage. At low/personal scale this is a non-issue; at real scale it's the first thing to fix (see Security doc).
 - **No dedicated cache table** for TMDB lookups - the Next.js fetch cache helps, but a real `titles` cache table in Supabase would let *popular* searches (e.g. many different users searching "Inception") skip TMDB entirely after the first lookup, rather than relying on an in-memory/edge cache that isn't guaranteed to persist.
 - **The AI call is synchronous** - the user waits ~10-15 seconds on the request page with no progress feedback beyond a disabled button. This is a real UX ceiling, not just a performance one.
 - **The cross-user feedback aggregate view exists but isn't wired into ranking yet** (a deliberate scope decision, see `ARCHITECTURE.md`) - so it currently costs a small amount of index-maintenance overhead per feedback write, without yet delivering its intended benefit.

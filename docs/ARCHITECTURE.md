@@ -5,7 +5,7 @@
 - **Next.js app** (TypeScript, App Router) - hosts both the frontend UI and the server-side logic (Server Components, Server Actions, one API route), deployed on Vercel.
 - **Supabase** - hosted Postgres database + Authentication.
 - **TMDB API** - external source of real movie/TV metadata and similar-title candidates; used to *ground* recommendations in real, existing titles.
-- **Gemini API** (Google) - used to interpret the user's free-text reasoning and rank/explain the TMDB candidate set. It never invents titles - it only ranks and explains titles TMDB already confirmed exist.
+- **Groq API** (running `openai/gpt-oss-20b`) - used to interpret the user's free-text reasoning and rank/explain the TMDB candidate set. It never invents titles - it only ranks and explains titles TMDB already confirmed exist.
 
 ## Database use
 
@@ -67,7 +67,7 @@ Yes - Supabase Postgres, with Row Level Security enabled on every table.
 
 ## Server Actions vs. API routes
 
-- **Server Actions** (mutations, triggered by the app's own UI): `signUp`, `signIn`, `signOut`, `createRecommendationRequest` (looks up TMDB, calls Gemini, writes `recommendation_requests` + `recommendations`), `rateRecommendation` (upserts `recommendation_feedback`).
+- **Server Actions** (mutations, triggered by the app's own UI): `signUp`, `signIn`, `signOut`, `createRecommendationRequest` (looks up TMDB, calls Groq, writes `recommendation_requests` + `recommendations`), `rateRecommendation` (upserts `recommendation_feedback`).
 - **One API route**, `GET /api/tmdb/search`: powers a live title-search-as-you-type box in the request form. This is a plain read triggered by client-side typing (not a mutation tied to the app's own form submission flow), so a REST-style endpoint fits better than a Server Action here.
 - Everything else (rendering history, saved lists, results) is read directly in **Server Components** from Supabase - no separate API layer needed.
 
@@ -80,7 +80,7 @@ Server Action createRecommendationRequest
    ↓ authenticate (reject if no session)
    ↓ validate input (title selected, reasoning non-empty)
    ↓ call TMDB: fetch source title details + candidate similar titles
-   ↓ call Gemini: rank & explain candidates using the user's reasoning
+   ↓ call Groq: rank & explain candidates using the user's reasoning
    ↓ insert recommendation_requests + recommendations rows (RLS confirms ownership)
    ↓ redirect to /recommend/[requestId]
 Server Component renders the new request's recommendations from the database
@@ -96,5 +96,5 @@ Single user role - every logged-in user has identical capabilities, scoped entir
 ## External services and why
 
 - **TMDB** - grounds every recommendation in a real, existing title (prevents AI hallucination of nonexistent movies/shows) and supplies posters, genres, and a starting candidate pool.
-- **Gemini API** - handles the genuinely subjective part (interpreting *why* someone liked something) that a fixed algorithm can't do well, applied only to a TMDB-verified candidate set.
+- **Groq API** - handles the genuinely subjective part (interpreting *why* someone liked something) that a fixed algorithm can't do well, applied only to a TMDB-verified candidate set. Chosen over Gemini after hitting Gemini's free-tier daily quota (20 requests/day) during development - Groq's free tier allows 1,000 requests/day on this model, with no billing setup required.
 - **Supabase Auth** - avoids building a custom authentication system from scratch, while giving us Postgres-level Row Level Security for authorization.

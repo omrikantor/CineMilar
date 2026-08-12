@@ -29,18 +29,18 @@ Every Server Action validates input server-side using **Zod schemas** (`src/lib/
 
 - Server Actions get Next.js's built-in CSRF protection for free: the framework compares the request's `Origin` against its `Host` and rejects mismatches automatically.
 - The one REST endpoint, `GET /api/tmdb/search`, exists specifically so the browser's autocomplete box never sees the TMDB key directly - the key stays server-side and the endpoint only ever returns already-public search results.
-- The AI-calling path (`createRecommendationRequest`) re-validates the model's own output before trusting it (`filterValidPicks` in `src/lib/candidatePool.ts`) - even though the prompt constrains Gemini to only choose from the given candidates, we don't assume it complied.
+- The AI-calling path (`createRecommendationRequest`) re-validates the model's own output before trusting it (`filterValidPicks` in `src/lib/candidatePool.ts`) - even though the prompt constrains the model to only choose from the given candidates, we don't assume it complied.
 
 ## Storing secrets
 
-`TMDB_API_KEY` and `GEMINI_API_KEY` have **no** `NEXT_PUBLIC_` prefix, so Next.js never bundles them into browser code - only `NEXT_PUBLIC_SUPABASE_URL` and the Supabase *publishable* key (safe by design, since real enforcement happens via RLS) are exposed client-side. All four live in `.env.local` locally (git-ignored, never committed) and are mirrored in Vercel's project settings for the deployed app. The `server-only` npm package is imported at the top of `src/lib/tmdb.ts` and `src/lib/gemini.ts` specifically so that accidentally importing either file into a Client Component would fail the build, rather than silently leaking a secret.
+`TMDB_API_KEY` and `GROQ_API_KEY` have **no** `NEXT_PUBLIC_` prefix, so Next.js never bundles them into browser code - only `NEXT_PUBLIC_SUPABASE_URL` and the Supabase *publishable* key (safe by design, since real enforcement happens via RLS) are exposed client-side. All four live in `.env.local` locally (git-ignored, never committed) and are mirrored in Vercel's project settings for the deployed app. The `server-only` npm package is imported at the top of `src/lib/tmdb.ts` and `src/lib/ai.ts` specifically so that accidentally importing either file into a Client Component would fail the build, rather than silently leaking a secret.
 
 ## Remaining risks and future improvements
 
 Being honest about what's still imperfect:
 
 - **`GET /api/tmdb/search` is unauthenticated.** It doesn't touch our database or cost AI money, but it does mean anyone could hit it directly and indirectly consume our TMDB key's rate limit. Low severity, but a real gap - a next step would be light rate limiting or requiring a session.
-- **No rate limiting on `createRecommendationRequest`.** Nothing currently stops a user from submitting requests in a tight loop, each costing real TMDB + Gemini usage - this is the most realistic cost/abuse risk in the current product, and the top priority if this went further.
+- **No rate limiting on `createRecommendationRequest`.** Nothing currently stops a user from submitting requests in a tight loop, each costing real TMDB + Groq usage - this is the most realistic cost/abuse risk in the current product, and the top priority if this went further.
 - **No automated dependency vulnerability scanning** (e.g. `npm audit` in CI) - currently a manual, occasional check.
 - **No structured logging or alerting** for suspicious activity (repeated failed logins, unusual request volume) - errors are currently just `console.error`-logged server-side.
 - **The `recommendation_feedback_aggregate` view intentionally bypasses per-row RLS** (it's a plain view, not `security_invoker`) so it can aggregate across all users - this is deliberate and safe *because* it only ever exposes aggregated numbers (`avg_rating`, `rating_count`), never an individual user's rating or identity, but it's worth naming explicitly as a spot where a schema change could accidentally leak more than intended if someone later adds a column to the view without thinking it through.

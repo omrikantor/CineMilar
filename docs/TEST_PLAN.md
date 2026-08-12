@@ -4,7 +4,7 @@
 
 Per the assignment brief, the goal isn't 100% code coverage - it's proving the core flows genuinely work, invalid input is handled, and permissions are enforced. Tests split across three layers : fast **unit tests** for pure logic, **component tests** for UI behavior, and **end-to-end tests** for real user journeys through a real browser against the real Supabase project.
 
-One deliberate scoping decision: the AI-dependent recommendation pipeline (calling TMDB + Gemini) is **not** run in the automated E2E suite. Each run costs real API calls, is slower, and depends on services outside our control - the kind of flakiness automated suites should avoid. Instead, its core *logic* is unit-tested (see below), and the end-to-end behavior is covered by **documented manual testing**.
+One deliberate scoping decision: the AI-dependent recommendation pipeline (calling TMDB + Groq) is **not** run in the automated E2E suite. Each run costs real API calls, is slower, and depends on services outside our control - the kind of flakiness automated suites should avoid. Instead, its core *logic* is unit-tested (see below), and the end-to-end behavior is covered by **documented manual testing**.
 
 ## Test categories -> what covers them
 
@@ -57,7 +57,7 @@ One deliberate scoping decision: the AI-dependent recommendation pipeline (calli
 
 ## Documented manual tests
 
-Performed live during development (Aug 2026), against the real TMDB and Gemini APIs and the real Supabase project:
+Performed live during development (Aug 2026), against the real TMDB and Groq APIs and the real Supabase project:
 
 1. **Full recommendation pipeline** - searched "The Matrix" (movie), reasoning: *"I loved the mind-bending reality-questioning premise, the stylish action, and the philosophical themes about choice versus fate."* Result: 6 real, TMDB-verified titles (e.g. *The Thirteenth Floor*, *Fahrenheit 451*) each with a specific AI-written explanation tied to the stated reasoning. Confirmed no invented/nonexistent titles appeared.
 2. **Rate -> Saved flow** - rated "The Thirteenth Floor" 👍 from the results page; confirmed it immediately appeared on `/saved` with correct title, poster, and a working link out to its TMDB page.

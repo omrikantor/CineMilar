@@ -1,5 +1,5 @@
 import type { TmdbSearchResult } from "@/lib/tmdb";
-import type { RankedPick } from "@/lib/gemini";
+import type { RankedPick } from "@/lib/ai";
 
 /**
  * Combines multiple TMDB result lists into one deduped pool (by tmdbId),
