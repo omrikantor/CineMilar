@@ -40,10 +40,15 @@ export default async function SavedPage({
   return (
     <main className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
       <Nav />
-      <h1 className="text-2xl font-semibold">Saved</h1>
+      <div>
+        <Link href="/recommend" className="btn-ghost">
+          ← New search
+        </Link>
+        <h1 className="mt-2 text-2xl font-semibold">Saved</h1>
+      </div>
 
       {(!saved || saved.length === 0) && (
-        <p className="text-sm text-gray-600">
+        <p className="text-sm" style={{ color: "var(--muted)" }}>
           Nothing saved yet — like a recommendation to see it here.
         </p>
       )}
@@ -58,21 +63,26 @@ export default async function SavedPage({
               href={tmdbUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex gap-3 rounded border p-3 hover:bg-gray-50"
+              className="card flex gap-3 transition-colors hover:bg-black/5"
             >
-              {posterUrl && (
+              {posterUrl ? (
                 <Image
                   src={posterUrl}
                   alt={item.candidate_title}
                   width={60}
                   height={90}
-                  className="h-fit rounded"
+                  className="h-[90px] w-[60px] shrink-0 rounded-lg"
+                />
+              ) : (
+                <div
+                  className="h-[90px] w-[60px] shrink-0 rounded-lg"
+                  style={{ backgroundColor: "var(--border)" }}
                 />
               )}
               <div>
                 <h2 className="font-medium">{item.candidate_title}</h2>
-                <p className="text-xs text-gray-500">
-                  {item.candidate_media_type === "movie" ? "Movie" : "TV Series"}
+                <p className="text-xs" style={{ color: "var(--muted)" }}>
+                  {item.candidate_media_type === "movie" ? "🎬 Movie" : "📺 TV Series"}
                 </p>
               </div>
             </a>
@@ -83,17 +93,17 @@ export default async function SavedPage({
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-sm">
           {page > 1 ? (
-            <Link href={`/saved?page=${page - 1}`} className="underline">
+            <Link href={`/saved?page=${page - 1}`} className="btn-ghost">
               ← Previous
             </Link>
           ) : (
             <span />
           )}
-          <span className="text-gray-500">
+          <span style={{ color: "var(--muted)" }}>
             Page {page} of {totalPages}
           </span>
           {page < totalPages ? (
-            <Link href={`/saved?page=${page + 1}`} className="underline">
+            <Link href={`/saved?page=${page + 1}`} className="btn-ghost">
               Next →
             </Link>
           ) : (

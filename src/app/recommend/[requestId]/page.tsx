@@ -51,10 +51,12 @@ export default async function RecommendationResultsPage({
       <Nav />
 
       <div>
-        <Link href="/recommend" className="text-sm underline">
+        <Link href="/recommend" className="btn-ghost">
           ← New search
         </Link>
-        <p className="mt-2 text-sm text-gray-500">Because you liked</p>
+        <p className="mt-3 text-sm" style={{ color: "var(--muted)" }}>
+          Because you liked
+        </p>
         <h1 className="text-2xl font-semibold">{request.source_title}</h1>
       </div>
 
@@ -62,19 +64,26 @@ export default async function RecommendationResultsPage({
         {(recommendations ?? []).map((rec) => {
           const posterUrl = tmdbPosterUrl(rec.poster_path, "w500");
           return (
-            <div key={rec.id} className="flex gap-3 rounded border p-3">
-              {posterUrl && (
+            <div key={rec.id} className="card flex gap-3">
+              {posterUrl ? (
                 <Image
                   src={posterUrl}
                   alt={rec.title}
                   width={80}
                   height={120}
-                  className="h-fit rounded"
+                  className="h-[120px] w-20 shrink-0 rounded-lg"
+                />
+              ) : (
+                <div
+                  className="h-[120px] w-20 shrink-0 rounded-lg"
+                  style={{ backgroundColor: "var(--border)" }}
                 />
               )}
               <div>
                 <h2 className="font-medium">{rec.title}</h2>
-                <p className="mt-1 text-sm text-gray-600">{rec.ai_explanation}</p>
+                <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+                  {rec.ai_explanation}
+                </p>
                 <RateButtons
                   sourceTmdbId={request.source_tmdb_id}
                   sourceMediaType={request.source_media_type}

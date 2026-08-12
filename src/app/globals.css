@@ -1,26 +1,95 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #faf9fc;
+  --foreground: #171123;
+  --surface: #ffffff;
+  --border: #e6e1ee;
+  --muted: #6b6478;
+  --accent: #7c3aed;
+  --accent-hover: #6d28d9;
+  --accent-foreground: #ffffff;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #14111d;
+    --foreground: #f1eef7;
+    --surface: #1c1829;
+    --border: #322b45;
+    --muted: #a79fbb;
+    --accent: #a78bfa;
+    --accent-hover: #c4b5fd;
+    --accent-foreground: #1c1829;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+    background-color: var(--accent);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background-color: var(--accent-hover);
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+    background-color: var(--surface);
+    border-color: var(--border);
+  }
+  .btn-ghost {
+    @apply inline-flex items-center gap-1 text-sm font-medium transition-colors;
+    color: var(--muted);
+  }
+  .btn-ghost:hover {
+    color: var(--accent);
+  }
+
+  .field {
+    @apply flex flex-col gap-1.5 text-sm font-medium;
+  }
+  .field-input {
+    @apply rounded-lg border px-3 py-2 text-sm outline-none transition-colors;
+    background-color: var(--surface);
+    border-color: var(--border);
+    color: var(--foreground);
+  }
+  .field-input:focus {
+    border-color: var(--accent);
+  }
+
+  .card {
+    @apply rounded-xl border p-4 shadow-sm;
+    background-color: var(--surface);
+    border-color: var(--border);
+  }
+
+  .chip {
+    @apply rounded-full px-3 py-1.5 text-sm font-medium transition-colors;
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .chip-active {
+    @apply rounded-full border border-transparent px-3 py-1.5 text-sm font-medium transition-colors;
+    background-color: var(--accent);
+    color: var(--accent-foreground);
+  }
 }

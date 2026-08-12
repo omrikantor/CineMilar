@@ -44,15 +44,14 @@ export function RateButtons({
   }
 
   return (
-    <div className="mt-2 flex gap-2">
+    <div className="mt-3 flex gap-2">
       <button
         type="button"
         disabled={isPending}
         onClick={() => handleRate(1)}
         aria-pressed={rating === 1}
-        className={`rounded px-2 py-1 text-sm ${
-          rating === 1 ? "bg-green-100" : "border"
-        }`}
+        className={rating === 1 ? "chip-active" : "chip"}
+        style={rating === 1 ? { backgroundColor: "#16a34a" } : undefined}
       >
         👍 Like
       </button>
@@ -61,9 +60,8 @@ export function RateButtons({
         disabled={isPending}
         onClick={() => handleRate(-1)}
         aria-pressed={rating === -1}
-        className={`rounded px-2 py-1 text-sm ${
-          rating === -1 ? "bg-red-100" : "border"
-        }`}
+        className={rating === -1 ? "chip-active" : "chip"}
+        style={rating === -1 ? { backgroundColor: "#dc2626" } : undefined}
       >
         👎 Not for me
       </button>

@@ -46,30 +46,26 @@ export function RecommendForm() {
   }
 
   return (
-    <form action={formAction} className="flex flex-col gap-4">
+    <form action={formAction} className="card flex flex-col gap-5">
       <div className="flex gap-2">
         <button
           type="button"
           onClick={() => switchMediaType("movie")}
-          className={`rounded px-3 py-1 text-sm ${
-            mediaType === "movie" ? "bg-black text-white" : "border"
-          }`}
+          className={mediaType === "movie" ? "chip-active" : "chip"}
         >
-          Movie
+          🎬 Movie
         </button>
         <button
           type="button"
           onClick={() => switchMediaType("tv")}
-          className={`rounded px-3 py-1 text-sm ${
-            mediaType === "tv" ? "bg-black text-white" : "border"
-          }`}
+          className={mediaType === "tv" ? "chip-active" : "chip"}
         >
-          TV Series
+          📺 TV Series
         </button>
       </div>
 
       <div className="relative">
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="field">
           Title you liked
           <input
             type="text"
@@ -79,12 +75,15 @@ export function RecommendForm() {
               setQuery(e.target.value);
             }}
             placeholder={`Search for a ${mediaType === "movie" ? "movie" : "TV series"}...`}
-            className="rounded border px-3 py-2"
+            className="field-input"
             required
           />
         </label>
         {results.length > 0 && !selected && (
-          <ul className="absolute z-10 mt-1 w-full rounded border bg-white shadow">
+          <ul
+            className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border shadow-lg"
+            style={{ backgroundColor: "var(--surface)", borderColor: "var(--border)" }}
+          >
             {results.map((r) => (
               <li key={r.tmdbId}>
                 <button
@@ -93,18 +92,23 @@ export function RecommendForm() {
                     setSelected(r);
                     setResults([]);
                   }}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-gray-100"
+                  className="flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-black/5"
                 >
-                  {r.posterUrl && (
+                  {r.posterUrl ? (
                     <Image
                       src={r.posterUrl}
                       alt=""
                       width={32}
                       height={48}
-                      className="rounded"
+                      className="h-12 w-8 shrink-0 rounded"
+                    />
+                  ) : (
+                    <div
+                      className="h-12 w-8 shrink-0 rounded"
+                      style={{ backgroundColor: "var(--border)" }}
                     />
                   )}
-                  <span>
+                  <span className="text-sm">
                     {r.title} {r.year && `(${r.year})`}
                   </span>
                 </button>
@@ -122,14 +126,15 @@ export function RecommendForm() {
         </>
       )}
 
-      <label className="flex flex-col gap-1 text-sm">
+      <label className="field">
         What did you like about it?
         <textarea
           name="reasoning"
           required
           rows={4}
           maxLength={1000}
-          className="rounded border px-3 py-2"
+          placeholder="e.g. the slow-burn tension, the morally grey characters, the twist ending..."
+          className="field-input"
         />
       </label>
 
@@ -142,7 +147,7 @@ export function RecommendForm() {
       <button
         type="submit"
         disabled={pending || !selected}
-        className="rounded bg-black px-4 py-2 text-white disabled:opacity-50"
+        className="btn-primary"
       >
         {pending ? "Finding recommendations..." : "Get recommendations"}
       </button>

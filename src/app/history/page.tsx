@@ -37,22 +37,27 @@ export default async function HistoryPage({
   return (
     <main className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
       <Nav />
-      <h1 className="text-2xl font-semibold">History</h1>
+      <div>
+        <Link href="/recommend" className="btn-ghost">
+          ← New search
+        </Link>
+        <h1 className="mt-2 text-2xl font-semibold">History</h1>
+      </div>
 
       {(!requests || requests.length === 0) && (
-        <p className="text-sm text-gray-600">
+        <p className="text-sm" style={{ color: "var(--muted)" }}>
           No searches yet — go find your next watch.
         </p>
       )}
 
       <ul className="flex flex-col gap-2">
         {(requests ?? []).map((r) => (
-          <li key={r.id} className="rounded border p-3">
-            <Link href={`/recommend/${r.id}`} className="font-medium underline">
+          <li key={r.id} className="card">
+            <Link href={`/recommend/${r.id}`} className="font-medium hover:underline">
               {r.source_title}
             </Link>
-            <p className="text-xs text-gray-500">
-              {r.source_media_type === "movie" ? "Movie" : "TV Series"} ·{" "}
+            <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
+              {r.source_media_type === "movie" ? "🎬 Movie" : "📺 TV Series"} ·{" "}
               {new Date(r.created_at).toLocaleDateString()}
             </p>
           </li>
@@ -62,17 +67,17 @@ export default async function HistoryPage({
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-sm">
           {page > 1 ? (
-            <Link href={`/history?page=${page - 1}`} className="underline">
+            <Link href={`/history?page=${page - 1}`} className="btn-ghost">
               ← Previous
             </Link>
           ) : (
             <span />
           )}
-          <span className="text-gray-500">
+          <span style={{ color: "var(--muted)" }}>
             Page {page} of {totalPages}
           </span>
           {page < totalPages ? (
-            <Link href={`/history?page=${page + 1}`} className="underline">
+            <Link href={`/history?page=${page + 1}`} className="btn-ghost">
               Next →
             </Link>
           ) : (

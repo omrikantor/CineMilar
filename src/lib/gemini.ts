@@ -12,35 +12,57 @@ function apiKey(): string {
   return key;
 }
 
+const RETRYABLE_STATUS_CODES = new Set([429, 503]);
+const MAX_ATTEMPTS = 3;
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function generateJson<T>(
   prompt: string,
   responseSchema: Record<string, unknown>
 ): Promise<T> {
   const url = `${GEMINI_API_BASE}/models/${MODEL}:generateContent?key=${apiKey()}`;
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema,
-      },
-    }),
-  });
+  let lastError: Error | null = null;
 
-  if (!res.ok) {
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema,
+        },
+      }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const text: string | undefined = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) {
+        throw new Error("Gemini returned no content");
+      }
+      return JSON.parse(text) as T;
+    }
+
     const errText = await res.text();
-    throw new Error(`Gemini request failed (${res.status}): ${errText}`);
+    lastError = new Error(`Gemini request failed (${res.status}): ${errText}`);
+
+    // 429 (rate limited) and 503 (temporarily overloaded) are both cases
+    // Google's own error message describes as transient — worth a short,
+    // bounded retry rather than failing the user's request outright.
+    const canRetry = RETRYABLE_STATUS_CODES.has(res.status) && attempt < MAX_ATTEMPTS;
+    if (!canRetry) {
+      throw lastError;
+    }
+    await delay(attempt * 1000);
   }
 
-  const data = await res.json();
-  const text: string | undefined = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) {
-    throw new Error("Gemini returned no content");
-  }
-  return JSON.parse(text) as T;
+  throw lastError ?? new Error("Gemini request failed");
 }
 
 export type TasteSignals = {
