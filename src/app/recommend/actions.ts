@@ -80,7 +80,9 @@ export async function createRecommendationRequest(
   if (!parsed.success) {
     return { error: firstIssueMessage(parsed.error) };
   }
-  const { tmdbId, mediaType: type, title: sourceTitle, reasoning } = parsed.data;
+  // `title` is validated (non-empty = a real selection was made) but
+  // intentionally not used for storage — see the trusted TMDB lookup below.
+  const { tmdbId, mediaType: type, reasoning } = parsed.data;
 
   let requestId: string;
 
@@ -133,7 +135,10 @@ export async function createRecommendationRequest(
         user_id: user.id,
         source_tmdb_id: tmdbId,
         source_media_type: type,
-        source_title: sourceTitle,
+        // Store the title TMDB actually returned for this id, not the raw
+        // client-submitted text — the client can only choose *which* title
+        // (via tmdbId), never dictate what gets stored about it.
+        source_title: sourceDetails.title,
         reasoning,
       })
       .select("id")
