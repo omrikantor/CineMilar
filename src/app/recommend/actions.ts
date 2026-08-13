@@ -60,8 +60,19 @@ export type CreateRequestState = {
   error?: string;
 };
 
-const MAX_CANDIDATES = 25;
+// Kept deliberately small: Groq's free tier caps this model at 8,000
+// tokens/minute, and each candidate's overview adds real prompt tokens to
+// the ranking call — a smaller, trimmed pool keeps every request well
+// within that budget instead of relying on retries to paper over it.
+const MAX_CANDIDATES = 14;
 const MAX_PICKS = 6;
+const MAX_OVERVIEW_CHARS = 220;
+
+function truncateOverview(overview: string): string {
+  return overview.length > MAX_OVERVIEW_CHARS
+    ? `${overview.slice(0, MAX_OVERVIEW_CHARS)}...`
+    : overview;
+}
 
 export async function createRecommendationRequest(
   _prevState: CreateRequestState,
@@ -89,7 +100,7 @@ export async function createRecommendationRequest(
   try {
     const [sourceDetails, similarPool] = await Promise.all([
       getTitleDetails(tmdbId, type),
-      getSimilarTitles(tmdbId, type, 20),
+      getSimilarTitles(tmdbId, type, 10),
     ]);
 
     // Broaden the pool using what the user actually said they liked, not
@@ -98,7 +109,7 @@ export async function createRecommendationRequest(
     const discoveredPool = await discoverTitles(
       type,
       { genreNames: taste.genres, keywordTerms: taste.keywords },
-      15
+      8
     );
 
     const candidatePool = mergeCandidatePools(
@@ -114,13 +125,13 @@ export async function createRecommendationRequest(
     const picks = await rankCandidates({
       sourceTitle: sourceDetails.title,
       sourceYear: sourceDetails.year,
-      sourceOverview: sourceDetails.overview,
+      sourceOverview: truncateOverview(sourceDetails.overview),
       reasoning,
       candidates: candidatePool.map((c) => ({
         tmdbId: c.tmdbId,
         title: c.title,
         year: c.year,
-        overview: c.overview,
+        overview: truncateOverview(c.overview),
       })),
       maxPicks: MAX_PICKS,
     });
