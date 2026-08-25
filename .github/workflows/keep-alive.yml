@@ -1,0 +1,17 @@
+name: Keep Supabase project active
+
+# Supabase's free tier auto-pauses a project after 7 days with no activity.
+# Every request to the app touches Supabase (the session-refresh check in
+# src/proxy.ts calls supabase.auth.getUser() on virtually every page load),
+# so simply visiting the live site periodically is enough to prevent that.
+on:
+  schedule:
+    - cron: "0 6 */2 * *" # every 2 days, well inside the 7-day window
+  workflow_dispatch: {} # allows manually triggering a run from the Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping the live app
+        run: curl -sSf -o /dev/null -w "HTTP %{http_code}\n" https://cine-milar.vercel.app/login
