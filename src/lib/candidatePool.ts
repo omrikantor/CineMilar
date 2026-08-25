@@ -3,21 +3,32 @@ import type { RankedPick } from "@/lib/ai";
 
 /**
  * Combines multiple TMDB result lists into one deduped pool (by tmdbId),
- * excluding the source title itself. Pure data transform - no network calls.
+ * excluding the source title itself. Interleaves round-robin across pools
+ * (rather than concatenating them) so that whichever pool is listed first
+ * doesn't structurally crowd out the others once the combined pool gets
+ * capped by the caller - each pool gets a fair share of the surviving slots
+ * regardless of pool order or relative size. Pure data transform - no
+ * network calls.
  */
 export function mergeCandidatePools(
   pools: TmdbSearchResult[][],
   excludeTmdbId: number
 ): TmdbSearchResult[] {
-  const merged = new Map<number, TmdbSearchResult>();
-  for (const pool of pools) {
-    for (const item of pool) {
-      if (item.tmdbId !== excludeTmdbId) {
-        merged.set(item.tmdbId, item);
+  const seen = new Set<number>([excludeTmdbId]);
+  const merged: TmdbSearchResult[] = [];
+  const maxLength = Math.max(0, ...pools.map((pool) => pool.length));
+
+  for (let i = 0; i < maxLength; i++) {
+    for (const pool of pools) {
+      const item = pool[i];
+      if (item && !seen.has(item.tmdbId)) {
+        seen.add(item.tmdbId);
+        merged.push(item);
       }
     }
   }
-  return Array.from(merged.values());
+
+  return merged;
 }
 
 /**

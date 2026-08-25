@@ -60,11 +60,12 @@ export type CreateRequestState = {
   error?: string;
 };
 
-// Kept deliberately small: Groq's free tier caps this model at 8,000
-// tokens/minute, and each candidate's overview adds real prompt tokens to
-// the ranking call - a smaller, trimmed pool keeps every request well
-// within that budget instead of relying on retries to paper over it.
-const MAX_CANDIDATES = 14;
+// 18 is the point where nothing gets discarded: getSimilarTitles below is
+// capped at 10 and discoverTitles at 8, so a cap at their sum means neither
+// source's candidates get squeezed out by the other. Still well within
+// Groq's free-tier 8,000 tokens/minute budget - measured at ~1,760 total
+// tokens for a full ranking call at 18 candidates, vs. ~1,500 at 14.
+const MAX_CANDIDATES = 18;
 const MAX_PICKS = 6;
 const MAX_OVERVIEW_CHARS = 220;
 

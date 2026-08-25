@@ -32,6 +32,18 @@ describe("mergeCandidatePools", () => {
   it("returns an empty array when given no pools", () => {
     expect(mergeCandidatePools([], 1)).toEqual([]);
   });
+
+  it("interleaves pools round-robin instead of letting the first pool dominate", () => {
+    const bigPool = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((id) => makeResult(id));
+    const smallPool = [101, 102, 103].map((id) => makeResult(id));
+
+    const merged = mergeCandidatePools([bigPool, smallPool], -1);
+
+    // If capped at 6 (as a caller might), a fair interleave keeps candidates
+    // from both pools instead of the first pool crowding out the second.
+    const capped = merged.slice(0, 6).map((m) => m.tmdbId);
+    expect(capped).toEqual([1, 101, 2, 102, 3, 103]);
+  });
 });
 
 describe("filterValidPicks", () => {
