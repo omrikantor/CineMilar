@@ -7,7 +7,7 @@ test("login with wrong credentials shows a server-side error", async ({ page }) 
   await page.getByRole("button", { name: "Log in" }).click();
 
   await expect(page.getByRole("alert")).toBeVisible();
-  // Still on the login page — never redirected to the protected area.
+  // Still on the login page - never redirected to the protected area.
   await expect(page).toHaveURL(/\/login/);
 });
 

@@ -11,7 +11,7 @@ test("recommend page shows the request form when logged in", async ({ page }) =>
 test("visiting a nonexistent (or another user's) request shows not found", async ({
   page,
 }) => {
-  // A random UUID that won't match any row — this also covers the
+  // A random UUID that won't match any row - this also covers the
   // permissions case: RLS makes another user's real request look identical
   // to a nonexistent one, so this is the same code path either way.
   await page.goto("/recommend/00000000-0000-0000-0000-000000000000");
@@ -23,8 +23,23 @@ test("history page loads without error", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "History" })).toBeVisible();
 });
 
+test("history page falls back to page 1 for a negative page param", async ({ page }) => {
+  await page.goto("/history?page=-5");
+  await expect(page.getByRole("heading", { name: "History" })).toBeVisible();
+});
+
+test("history page falls back to page 1 for a non-numeric page param", async ({ page }) => {
+  await page.goto("/history?page=abc");
+  await expect(page.getByRole("heading", { name: "History" })).toBeVisible();
+});
+
 test("saved page loads without error", async ({ page }) => {
   await page.goto("/saved");
+  await expect(page.getByRole("heading", { name: "Saved" })).toBeVisible();
+});
+
+test("saved page falls back to page 1 for an invalid page param", async ({ page }) => {
+  await page.goto("/saved?page=-5");
   await expect(page.getByRole("heading", { name: "Saved" })).toBeVisible();
 });
 

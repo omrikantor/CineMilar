@@ -16,7 +16,7 @@ export default async function RecommendationResultsPage({
   const supabase = await createClient();
 
   // RLS means a request that doesn't exist and a request that belongs to
-  // someone else look identical here (both come back null) — that's
+  // someone else look identical here (both come back null) - that's
   // deliberate: we never reveal whether another user's data exists.
   const { data: request } = await supabase
     .from("recommendation_requests")

@@ -49,7 +49,7 @@ export default async function SavedPage({
 
       {(!saved || saved.length === 0) && (
         <p className="text-sm" style={{ color: "var(--muted)" }}>
-          Nothing saved yet — like a recommendation to see it here.
+          Nothing saved yet - like a recommendation to see it here.
         </p>
       )}
 

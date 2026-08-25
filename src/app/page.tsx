@@ -13,7 +13,7 @@ export default function Home() {
         CineMilar
       </h1>
       <p className="mt-4 max-w-md text-lg leading-relaxed" style={{ color: "var(--muted)" }}>
-        Tell us a movie or TV series you loved — and why — and get real,
+        Tell us a movie or TV series you loved - and why - and get real,
         explained recommendations for what to watch next.
       </p>
       <Link href="/login" className="btn-primary mt-8 px-6 py-3 text-base">

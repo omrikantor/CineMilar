@@ -148,7 +148,7 @@ export async function getSimilarTitles(
   return results.slice(0, limit).map((item) => toSearchResult(item, mediaType));
 }
 
-/** The exact genre names valid for this media type — used to constrain the AI's extraction step. */
+/** The exact genre names valid for this media type - used to constrain the AI's extraction step. */
 export function genreNamesForMediaType(mediaType: MediaType): string[] {
   return Object.keys(mediaType === "movie" ? MOVIE_GENRES : TV_GENRES);
 }

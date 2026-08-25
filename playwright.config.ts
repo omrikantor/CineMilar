@@ -3,7 +3,7 @@ import { defineConfig, devices } from "@playwright/test";
 try {
   process.loadEnvFile(".env.local");
 } catch {
-  // .env.local not present — fine for CI environments that inject env vars directly.
+  // .env.local not present - fine for CI environments that inject env vars directly.
 }
 
 export default defineConfig({

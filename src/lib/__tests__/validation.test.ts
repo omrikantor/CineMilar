@@ -44,6 +44,14 @@ describe("recommendationRequestSchema", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it("accepts reasoning at exactly 1000 characters", () => {
+    const result = recommendationRequestSchema.safeParse({
+      ...valid,
+      reasoning: "a".repeat(1000),
+    });
+    expect(result.success).toBe(true);
+  });
 });
 
 describe("parseRecommendationRequestForm", () => {

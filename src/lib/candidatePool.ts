@@ -3,7 +3,7 @@ import type { RankedPick } from "@/lib/ai";
 
 /**
  * Combines multiple TMDB result lists into one deduped pool (by tmdbId),
- * excluding the source title itself. Pure data transform — no network calls.
+ * excluding the source title itself. Pure data transform - no network calls.
  */
 export function mergeCandidatePools(
   pools: TmdbSearchResult[][],
@@ -24,7 +24,7 @@ export function mergeCandidatePools(
  * Defensive check applied to the AI's output: even though the prompt
  * constrains it to choose only from the given candidates, this filters out
  * any id that isn't genuinely part of the real candidate pool before it's
- * trusted (Module 9 "never trust input blindly" — applied to AI output too).
+ * trusted (Module 9 "never trust input blindly" - applied to AI output too).
  */
 export function filterValidPicks(
   picks: RankedPick[],

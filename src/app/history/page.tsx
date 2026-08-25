@@ -46,7 +46,7 @@ export default async function HistoryPage({
 
       {(!requests || requests.length === 0) && (
         <p className="text-sm" style={{ color: "var(--muted)" }}>
-          No searches yet — go find your next watch.
+          No searches yet - go find your next watch.
         </p>
       )}
 

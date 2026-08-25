@@ -10,7 +10,7 @@ export const recommendationRequestSchema = z.object({
     .string()
     .trim()
     .min(1, "Please describe what you liked about it.")
-    .max(1000, "That's a bit long — please keep it under 1000 characters."),
+    .max(1000, "That's a bit long - please keep it under 1000 characters."),
 });
 
 export type RecommendationRequestInput = z.infer<typeof recommendationRequestSchema>;

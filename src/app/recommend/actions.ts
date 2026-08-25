@@ -62,7 +62,7 @@ export type CreateRequestState = {
 
 // Kept deliberately small: Groq's free tier caps this model at 8,000
 // tokens/minute, and each candidate's overview adds real prompt tokens to
-// the ranking call — a smaller, trimmed pool keeps every request well
+// the ranking call - a smaller, trimmed pool keeps every request well
 // within that budget instead of relying on retries to paper over it.
 const MAX_CANDIDATES = 14;
 const MAX_PICKS = 6;
@@ -92,7 +92,7 @@ export async function createRecommendationRequest(
     return { error: firstIssueMessage(parsed.error) };
   }
   // `title` is validated (non-empty = a real selection was made) but
-  // intentionally not used for storage — see the trusted TMDB lookup below.
+  // intentionally not used for storage - see the trusted TMDB lookup below.
   const { tmdbId, mediaType: type, reasoning } = parsed.data;
 
   let requestId: string;
@@ -119,7 +119,7 @@ export async function createRecommendationRequest(
     const candidateById = new Map(candidatePool.map((c) => [c.tmdbId, c]));
 
     if (candidatePool.length === 0) {
-      return { error: "Couldn't find similar titles for that pick — try another." };
+      return { error: "Couldn't find similar titles for that pick - try another." };
     }
 
     const picks = await rankCandidates({
@@ -147,7 +147,7 @@ export async function createRecommendationRequest(
         source_tmdb_id: tmdbId,
         source_media_type: type,
         // Store the title TMDB actually returned for this id, not the raw
-        // client-submitted text — the client can only choose *which* title
+        // client-submitted text - the client can only choose *which* title
         // (via tmdbId), never dictate what gets stored about it.
         source_title: sourceDetails.title,
         reasoning,

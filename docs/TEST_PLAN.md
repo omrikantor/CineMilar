@@ -17,7 +17,7 @@ One deliberate scoping decision: the AI-dependent recommendation pipeline (calli
 | AI output is never trusted blindly (hallucinated ids get filtered out) | Vitest - `filterValidPicks` tests in `candidatePool.test.ts` |
 | Recommend form UI (selection required before submit, error display) | RTL - `RecommendForm.test.tsx` |
 | Rate buttons (optimistic update, revert on failure, reflects existing rating) | RTL - `RateButtons.test.tsx` |
-| Full search -> TMDB grounding -> AI ranking -> results pipeline | **Manual, documented below** |
+| Full search -> TMDB grounding -> AI ranking -> results pipeline | **Manual, documented below** (happy path); Vitest - `actions.test.ts` (auth guard, invalid input, empty-candidate-pool, and TMDB/AI failure paths) |
 | Save/rate -> appears on Saved page | **Manual, documented below** |
 | History listing | **Manual, documented below** + Playwright smoke test |
 
@@ -45,10 +45,15 @@ One deliberate scoping decision: the AI-dependent recommendation pipeline (calli
 
 ### 6. Edge cases
 
-- Reasoning at the 1000-character boundary (rejected) and just under it (accepted) - `validation.test.ts`.
-- Empty candidate pool (TMDB returns nothing similar) - handled by an explicit early return in `createRecommendationRequest`, verified via code review (not unit tested directly, since it requires mocking three chained external calls for a single edge case - a reasonable line to draw given time constraints).
+- Reasoning at exactly 1000 characters (accepted) and over it (rejected) - `validation.test.ts`.
+- Empty candidate pool (TMDB returns nothing similar or discoverable) - `actions.test.ts`, with TMDB/AI mocked so the real early return in `createRecommendationRequest` is exercised directly rather than only verified by code review.
+- TMDB or AI request failure mid-pipeline - `actions.test.ts` confirms a generic, non-leaking error message is returned to the client while the real error is still logged server-side (`console.error` is asserted to have been called).
+- Unauthenticated call to `createRecommendationRequest` - `actions.test.ts`.
 - AI returns an id not present in the candidate pool (hallucination) - `filterValidPicks` unit tests.
 - Empty history/saved lists - both pages render an explicit "nothing yet" message rather than a blank page (verified manually).
+- Invalid `page` query param (negative or non-numeric) on `/history` and `/saved` - Playwright confirms the page falls back to page 1 instead of erroring (`logged-in.spec.ts`).
+- Rating the same recommendation twice - not separately tested. `recommendation_feedback` has a database-level `unique (user_id, source_tmdb_id, candidate_tmdb_id)` constraint and `rateRecommendation` upserts on that exact conflict target, so there's no application logic beyond "call upsert with the right conflict target" left to test once the schema and the one-line call are read together.
+- Session expiring mid-flow - not automated. Time-based and inherently flaky to simulate reliably in a fast test suite; the session-refresh behavior itself (via `src/proxy.ts`) is exercised on every Playwright run since each test performs real requests through it.
 
 ### 7. Basic UI
 

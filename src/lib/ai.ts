@@ -28,9 +28,16 @@ async function generateJson<T>(
   schemaName: string,
   jsonSchema: Record<string, unknown>,
   zodSchema: z.ZodType<T>,
-  maxOutputTokens: number
+  maxOutputTokens: number,
+  systemPrompt?: string
 ): Promise<T> {
   const url = `${GROQ_API_BASE}/chat/completions`;
+  const messages = systemPrompt
+    ? [
+        { role: "system" as const, content: systemPrompt },
+        { role: "user" as const, content: prompt },
+      ]
+    : [{ role: "user" as const, content: prompt }];
 
   let lastError: Error | null = null;
 
@@ -43,14 +50,14 @@ async function generateJson<T>(
       },
       body: JSON.stringify({
         model: MODEL,
-        messages: [{ role: "user", content: prompt }],
+        messages,
         // Sized per call, not one generous blanket value: the free tier's
         // tokens-per-minute cap makes over-requesting output tokens costly,
         // while too little risks truncating the JSON before it parses.
         max_tokens: maxOutputTokens,
         // This model spends variable, sometimes large amounts of tokens on
         // an internal chain-of-thought "reasoning" field before emitting
-        // the actual JSON content — both counted against max_tokens. That
+        // the actual JSON content - both counted against max_tokens. That
         // was silently truncating our JSON output whenever reasoning ran
         // long. We only need the final answer, not the reasoning trace.
         reasoning_effort: "low",
@@ -192,6 +199,9 @@ const rankedPicksResponseSchema = z.object({
   picks: z.array(rankedPickSchema),
 });
 
+const RANKING_SYSTEM_PROMPT =
+  "You are a sharp, opinionated film/TV critic helping a friend find their next watch. Write specific, personalized reasons a recommendation fits - never generic plot summaries. Every explanation must explicitly connect something the user said they liked to a concrete element of the candidate (a character dynamic, a plot mechanic, a tone, a specific moment-type), not just restate the candidate's premise. If a candidate is only a weak or surface-level match, say so honestly rather than forcing a generic-sounding fit.";
+
 /**
  * Ranks and explains a real candidate pool against the user's reasoning.
  * The prompt constrains the model to only choose ids from the given list, and
@@ -224,7 +234,7 @@ export async function rankCandidates({
 Here's what they said they liked about it:
 "${reasoning}"
 
-Below is a list of real candidate titles. Pick the best ${maxPicks} matches for this user, ranked best-first, and explain in one short sentence each why it matches what they described. You MUST only choose ids that appear in this list — never invent a title or use an id that isn't listed.
+Below is a list of real candidate titles. Pick the best ${maxPicks} matches for this user, ranked best-first, and explain in one short sentence each why it matches what they described. You MUST only choose ids that appear in this list - never invent a title or use an id that isn't listed.
 
 Candidates:
 ${candidateList}
@@ -252,7 +262,8 @@ Respond with ONLY a JSON object of the exact shape { "picks": [{ "tmdbId": numbe
       required: ["picks"],
     },
     rankedPicksResponseSchema,
-    1200
+    1200,
+    RANKING_SYSTEM_PROMPT
   );
 
   return filterValidPicks(
