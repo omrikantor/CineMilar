@@ -80,12 +80,17 @@ Server Action createRecommendationRequest
    ↓ authenticate (reject if no session)
    ↓ validate input (title selected, reasoning non-empty)
    ↓ call TMDB: fetch source title details + TMDB's generic "similar" titles
-   ↓ call Groq (1): extract genres + keywords from the user's own reasoning
-   ↓ call TMDB discover: one search per keyword + one genre search -> titles matching what the user described
-   ↓ build the candidate pool (max 18): description-matched titles get most slots,
-     "similar" titles keep a minimum of 5 (and backfill if discovery finds little);
+   ↓ call Groq (1): extract genres + keywords from the user's own reasoning, plus up to 6
+     specific title ideas that fit the themes they described
+   ↓ call TMDB (in parallel):
+       - discover: one search per keyword + one genre search -> titles matching what the user described
+       - verify the AI's title ideas: each is looked up on TMDB and kept only on an exact name match
+         (an invented title is dropped here and never reaches the ranking step)
+   ↓ build the candidate pool (max 18): AI-suggested and keyword/genre-discovered titles get most slots,
+     TMDB "similar" titles keep a minimum of 3 (and backfill if the other sources find little);
      each candidate is tagged [DESCRIBED] or [SIMILAR]
    ↓ call Groq (2): rank & explain candidates, weighting the user's reasoning above the source title
+     and allowing at most one title per franchise
    ↓ re-validate the AI's picks against the real candidate pool (drop any id not in it)
    ↓ insert recommendation_requests + recommendations rows (RLS confirms ownership)
    ↓ redirect to /recommend/[requestId]

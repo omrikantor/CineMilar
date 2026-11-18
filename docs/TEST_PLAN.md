@@ -13,7 +13,7 @@ One deliberate scoping decision: the AI-dependent recommendation pipeline (calli
 | Feature | Covered by |
 |---|---|
 | Input validation (recommendation request, rating, login, signup) | Vitest - `src/lib/__tests__/validation.test.ts` |
-| Candidate pool merging/deduping | Vitest - `src/lib/__tests__/candidatePool.test.ts` |
+| Candidate pool merging/deduping/prioritising, AI-title parsing and verification matching | Vitest - `src/lib/__tests__/candidatePool.test.ts` |
 | AI output is never trusted blindly (hallucinated ids get filtered out) | Vitest - `filterValidPicks` tests in `candidatePool.test.ts` |
 | Recommend form UI (selection required before submit, error display) | RTL - `RecommendForm.test.tsx` |
 | Rate buttons (optimistic update, revert on failure, reflects existing rating) | RTL - `RateButtons.test.tsx` |

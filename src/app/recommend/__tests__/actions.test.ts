@@ -7,6 +7,7 @@ vi.mock("@/lib/tmdb", () => ({
   getTitleDetails: vi.fn(),
   getSimilarTitles: vi.fn(),
   discoverTitles: vi.fn(),
+  resolveSuggestedTitles: vi.fn(),
   genreNamesForMediaType: vi.fn(() => []),
 }));
 vi.mock("@/lib/ai", () => ({
@@ -16,7 +17,12 @@ vi.mock("@/lib/ai", () => ({
 
 import { createRecommendationRequest } from "../actions";
 import { createClient } from "@/lib/supabase/server";
-import { getTitleDetails, getSimilarTitles, discoverTitles } from "@/lib/tmdb";
+import {
+  getTitleDetails,
+  getSimilarTitles,
+  discoverTitles,
+  resolveSuggestedTitles,
+} from "@/lib/tmdb";
 import { extractTasteSignals, rankCandidates } from "@/lib/ai";
 
 function makeFormData(
@@ -50,6 +56,7 @@ describe("createRecommendationRequest", () => {
     vi.mocked(getTitleDetails).mockReset();
     vi.mocked(getSimilarTitles).mockReset();
     vi.mocked(discoverTitles).mockReset();
+    vi.mocked(resolveSuggestedTitles).mockReset();
     vi.mocked(extractTasteSignals).mockReset();
     vi.mocked(rankCandidates).mockReset();
   });
@@ -85,7 +92,12 @@ describe("createRecommendationRequest", () => {
     });
     vi.mocked(getSimilarTitles).mockResolvedValue([]);
     vi.mocked(discoverTitles).mockResolvedValue([]);
-    vi.mocked(extractTasteSignals).mockResolvedValue({ genres: [], keywords: [] });
+    vi.mocked(resolveSuggestedTitles).mockResolvedValue([]);
+    vi.mocked(extractTasteSignals).mockResolvedValue({
+      genres: [],
+      keywords: [],
+      titles: [],
+    });
 
     const result = await createRecommendationRequest({}, makeFormData());
 

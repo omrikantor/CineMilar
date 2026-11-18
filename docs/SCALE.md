@@ -21,7 +21,7 @@ Four were added directly in the schema migration (`supabase/migrations/0001_init
 
 - TMDB responses are cached for an hour via Next.js's `fetch` cache (`next: { revalidate: 3600 }` in `src/lib/tmdb.ts`) - searching or looking up the same title repeatedly within that window doesn't re-hit TMDB.
 - Supabase queries select only the columns actually used (`select("*")` is used, but on narrow, purpose-built tables - there's no over-fetching of unrelated joined data since our schema doesn't have wide tables with unused columns).
-- The recommendation pipeline caps the AI candidate pool at 18 titles (`MAX_CANDIDATES`; most slots go to titles found from the user's own reasoning, with TMDB's generic "similar" list keeping a guaranteed minimum of 5) and truncates each overview to ~220 characters - bounding the size (and therefore cost/latency, and Groq's per-minute token budget) of the AI call.
+- The recommendation pipeline caps the AI candidate pool at 18 titles (`MAX_CANDIDATES`; most slots go to titles drawn from the user's own reasoning - AI-suggested titles verified on TMDB plus keyword/genre discovery - with TMDB's generic "similar" list keeping a guaranteed minimum of 3) and truncates each overview to ~220 characters - bounding the size (and therefore cost/latency, and Groq's per-minute token budget) of the AI call.
 
 ## Pagination
 

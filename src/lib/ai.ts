@@ -142,28 +142,42 @@ function safeJsonParse(text: string): unknown {
 const tasteSignalsSchema = z.object({
   genres: z.array(z.string()),
   keywords: z.array(z.string()),
+  // Defaulted so a response that omits it still parses (the other candidate
+  // sources then simply carry the pool).
+  titles: z.array(z.string()).default([]),
 });
 
 export type TasteSignals = z.infer<typeof tasteSignalsSchema>;
 
 /**
  * A small, bounded extraction step: turns the user's free-text reasoning into
- * a handful of real, structured TMDB search signals (not a recommendation).
+ * structured TMDB search signals plus a few specific title ideas. The title
+ * ideas are NOT trusted: the caller looks each one up on TMDB and drops any
+ * that don't exist, so only verified titles ever reach the ranking step.
  */
-export async function extractTasteSignals(
-  reasoning: string,
-  validGenres: string[]
-): Promise<TasteSignals> {
-  const prompt = `A user explained what they liked about a movie/TV series they watched:
+export async function extractTasteSignals({
+  reasoning,
+  validGenres,
+  sourceTitle,
+  mediaType,
+}: {
+  reasoning: string;
+  validGenres: string[];
+  sourceTitle: string;
+  mediaType: "movie" | "tv";
+}): Promise<TasteSignals> {
+  const kind = mediaType === "movie" ? "movies" : "TV series";
+  const prompt = `A user explained what they liked about "${sourceTitle}", a ${mediaType === "movie" ? "movie" : "TV series"} they watched:
 "${reasoning}"
 
 From this, extract:
 1. Up to 4 genres that match, chosen ONLY from this exact list (spell them exactly as shown): ${validGenres.join(", ")}
 2. Up to 4 short thematic keywords or phrases (e.g. "time travel", "found family", "revenge") that capture what they described.
+3. Up to 6 specific, well-known ${kind} that fit what they described at a deeper level - the same themes, emotional core or storytelling approach - not just the same genre or setting. Never include "${sourceTitle}" itself, and include at most one title from any one franchise or series. Only name titles you are certain exist, each written as "Title (Year)". Fewer is better than guessing.
 
 If nothing clearly matches, return empty arrays rather than guessing.
 
-Respond with ONLY a JSON object of the exact shape { "genres": string[], "keywords": string[] }, nothing else.`;
+Respond with ONLY a JSON object of the exact shape { "genres": string[], "keywords": string[], "titles": string[] }, nothing else.`;
 
   return generateJson(
     prompt,
@@ -173,11 +187,14 @@ Respond with ONLY a JSON object of the exact shape { "genres": string[], "keywor
       properties: {
         genres: { type: "array", items: { type: "string" } },
         keywords: { type: "array", items: { type: "string" } },
+        titles: { type: "array", items: { type: "string" } },
       },
-      required: ["genres", "keywords"],
+      required: ["genres", "keywords", "titles"],
     },
     tasteSignalsSchema,
-    300
+    // The model's hidden reasoning counts against this too; 500 left almost
+    // no headroom once the title suggestions were added (440 used in testing).
+    800
   );
 }
 
@@ -202,7 +219,7 @@ const rankedPicksResponseSchema = z.object({
 });
 
 const RANKING_SYSTEM_PROMPT =
-  "You are a sharp, opinionated film/TV critic helping a friend find their next watch. What the user said they liked is the primary criterion; the source title is only background. Each candidate is tagged: [DESCRIBED] means it was found by searching for the specific themes the user described, while [SIMILAR] means TMDB only considers it broadly similar to the source title. Prefer [DESCRIBED] candidates, and pick a [SIMILAR] one only when it clearly fits what the user said. Write specific, personalized reasons a recommendation fits - never generic plot summaries. Every explanation must explicitly connect something the user said they liked to a concrete element of the candidate (a character dynamic, a plot mechanic, a tone, a specific moment-type), not just restate the candidate's premise. If a candidate is only a weak or surface-level match, say so honestly rather than forcing a generic-sounding fit.";
+  "You are a sharp, opinionated film/TV critic helping a friend find their next watch. What the user said they liked is the primary criterion; the source title is only background. Each candidate is tagged: [DESCRIBED] means it was found by searching for the specific themes the user described, while [SIMILAR] means TMDB only considers it broadly similar to the source title. Prefer [DESCRIBED] candidates, and pick a [SIMILAR] one only when it clearly fits what the user said. Sharing only a genre or setting with the source title (for example, both being set in space) is not a reason to recommend something - look for the underlying themes the user described. Never recommend more than one title from the same franchise or series; variety matters. Write specific, personalized reasons a recommendation fits - never generic plot summaries. Every explanation must explicitly connect something the user said they liked to a concrete element of the candidate (a character dynamic, a plot mechanic, a tone, a specific moment-type), not just restate the candidate's premise. If a candidate is only a weak or surface-level match, say so honestly rather than forcing a generic-sounding fit.";
 
 /**
  * Ranks and explains a real candidate pool against the user's reasoning.

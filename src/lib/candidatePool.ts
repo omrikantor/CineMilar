@@ -51,21 +51,34 @@ export type PoolCandidate = TmdbSearchResult & {
 export function buildCandidatePool({
   similar,
   discovered,
+  suggested = [],
   sourceTmdbId,
   maxCandidates,
   minSimilar,
 }: {
   similar: TmdbSearchResult[];
   discovered: TmdbSearchResult[];
+  /** Titles the AI proposed for this specific reasoning, already verified to exist on TMDB. */
+  suggested?: TmdbSearchResult[];
   sourceTmdbId: number;
   maxCandidates: number;
   minSimilar: number;
 }): PoolCandidate[] {
+  const usableSuggested = suggested.filter((c) => c.tmdbId !== sourceTmdbId);
   const usableDiscovered = discovered.filter((c) => c.tmdbId !== sourceTmdbId);
-  const similarSlots = Math.max(minSimilar, maxCandidates - usableDiscovered.length);
+  const describedCount = new Set([
+    ...usableSuggested.map((c) => c.tmdbId),
+    ...usableDiscovered.map((c) => c.tmdbId),
+  ]).size;
+  const similarSlots = Math.max(minSimilar, maxCandidates - describedCount);
 
+  // Round-robin across the three sources, so if the combined pool has to be
+  // cut to maxCandidates no single source is squeezed out by another.
+  // Suggested comes first: a title the AI picked for this exact reasoning is
+  // the strongest signal, and it also wins any dedupe tie.
   const merged = mergeCandidatePools<PoolCandidate>(
     [
+      usableSuggested.map((c) => ({ ...c, fromDescription: true })),
       usableDiscovered.map((c) => ({ ...c, fromDescription: true })),
       similar.slice(0, similarSlots).map((c) => ({ ...c, fromDescription: false })),
     ],
@@ -73,6 +86,53 @@ export function buildCandidatePool({
   );
 
   return merged.slice(0, maxCandidates);
+}
+
+/** Splits an AI-suggested "Title (Year)" string into its parts. The year is optional. */
+export function parseTitleSuggestion(
+  raw: string
+): { title: string; year: string | null } | null {
+  const trimmed = raw.trim();
+  const match = trimmed.match(/^(.*?)\s*\((\d{4})\)\s*$/);
+  const title = (match ? match[1] : trimmed).trim();
+  if (!title) return null;
+  return { title, year: match ? match[2] : null };
+}
+
+function normalizeTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+/**
+ * Picks the TMDB search result that really is the title the AI named, or null.
+ * TMDB search is fuzzy - a made-up title can still come back with an unrelated
+ * result - so the result's title must match the suggestion exactly (ignoring
+ * case and punctuation). That keeps a hallucinated suggestion from sneaking a
+ * real-but-wrong title into the pool. When several titles share a name
+ * (remakes), the one closest to the suggested year wins.
+ */
+export function pickMatchingResult(
+  results: TmdbSearchResult[],
+  suggestion: { title: string; year: string | null }
+): TmdbSearchResult | null {
+  const wanted = normalizeTitle(suggestion.title);
+  if (!wanted) return null;
+
+  const matches = results.filter((r) => normalizeTitle(r.title) === wanted);
+  if (matches.length === 0) return null;
+
+  if (suggestion.year) {
+    const wantedYear = Number(suggestion.year);
+    const closeInYear = matches.find(
+      (r) => r.year !== null && Math.abs(Number(r.year) - wantedYear) <= 1
+    );
+    if (closeInYear) return closeInYear;
+  }
+  return matches[0];
 }
 
 /**

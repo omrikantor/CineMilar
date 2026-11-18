@@ -6,6 +6,7 @@ import {
   getTitleDetails,
   getSimilarTitles,
   discoverTitles,
+  resolveSuggestedTitles,
   genreNamesForMediaType,
 } from "@/lib/tmdb";
 import { extractTasteSignals, rankCandidates } from "@/lib/ai";
@@ -63,13 +64,14 @@ export type CreateRequestState = {
 // The pool the AI ranks is capped at 18: still well within Groq's free-tier
 // 8,000 tokens/minute budget - measured at ~1,760 total tokens for a full
 // ranking call at 18 candidates, vs. ~1,500 at 14. Most of those slots go to
-// titles found from what the user actually said they liked
-// (discoverTitles); TMDB's generic "similar" list only keeps a small
-// guaranteed minimum, plus any slots the discovery step didn't fill.
+// titles drawn from what the user actually said they liked: titles the AI
+// proposed for that reasoning (verified on TMDB) and titles found by TMDB
+// keyword/genre searches. TMDB's generic "similar" list only keeps a small
+// guaranteed minimum, plus any slots the other sources didn't fill.
 const MAX_CANDIDATES = 18;
-const MIN_SIMILAR_CANDIDATES = 5;
+const MIN_SIMILAR_CANDIDATES = 3;
 const SIMILAR_FETCH_LIMIT = 10;
-const DISCOVER_FETCH_LIMIT = MAX_CANDIDATES - MIN_SIMILAR_CANDIDATES;
+const DISCOVER_FETCH_LIMIT = 12;
 const MAX_PICKS = 6;
 const MAX_OVERVIEW_CHARS = 220;
 
@@ -110,16 +112,26 @@ export async function createRecommendationRequest(
 
     // Broaden the pool using what the user actually said they liked, not
     // just titles generically similar to the source.
-    const taste = await extractTasteSignals(reasoning, genreNamesForMediaType(type));
-    const discoveredPool = await discoverTitles(
-      type,
-      { genreNames: taste.genres, keywordTerms: taste.keywords },
-      DISCOVER_FETCH_LIMIT
-    );
+    const taste = await extractTasteSignals({
+      reasoning,
+      validGenres: genreNamesForMediaType(type),
+      sourceTitle: sourceDetails.title,
+      mediaType: type,
+    });
+    const [discoveredPool, suggestedPool] = await Promise.all([
+      discoverTitles(
+        type,
+        { genreNames: taste.genres, keywordTerms: taste.keywords },
+        DISCOVER_FETCH_LIMIT
+      ),
+      // The AI's own title ideas, kept only if TMDB confirms they exist.
+      resolveSuggestedTitles(type, taste.titles),
+    ]);
 
     const candidatePool = buildCandidatePool({
       similar: similarPool,
       discovered: discoveredPool,
+      suggested: suggestedPool,
       sourceTmdbId: tmdbId,
       maxCandidates: MAX_CANDIDATES,
       minSimilar: MIN_SIMILAR_CANDIDATES,

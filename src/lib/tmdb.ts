@@ -1,6 +1,10 @@
 import "server-only";
 import type { MediaType } from "@/types/database";
-import { mergeCandidatePools } from "@/lib/candidatePool";
+import {
+  mergeCandidatePools,
+  parseTitleSuggestion,
+  pickMatchingResult,
+} from "@/lib/candidatePool";
 
 const TMDB_API_BASE = "https://api.themoviedb.org/3";
 const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p";
@@ -168,6 +172,45 @@ async function searchKeywordIds(term: string): Promise<number[]> {
   const data = await tmdbFetch("/search/keyword", { query: term });
   const results: { id: number }[] = data.results ?? [];
   return results.slice(0, 3).map((k) => k.id);
+}
+
+const MAX_TITLE_SUGGESTIONS = 6;
+
+/**
+ * Turns the AI's suggested "Title (Year)" strings into real TMDB titles.
+ * This is what keeps AI suggestions grounded: a title only survives if TMDB
+ * has a result with that exact name, so an invented title is silently
+ * dropped and can never reach the ranking step.
+ */
+export async function resolveSuggestedTitles(
+  mediaType: MediaType,
+  suggestions: string[]
+): Promise<TmdbSearchResult[]> {
+  const endpoint = mediaType === "movie" ? "/search/movie" : "/search/tv";
+
+  const resolved = await Promise.all(
+    suggestions.slice(0, MAX_TITLE_SUGGESTIONS).map(async (raw) => {
+      const parsed = parseTitleSuggestion(raw);
+      if (!parsed) return null;
+      try {
+        const data = await tmdbFetch(endpoint, {
+          query: parsed.title,
+          include_adult: "false",
+        });
+        const results: TmdbRawItem[] = data.results ?? [];
+        return pickMatchingResult(
+          results.slice(0, 5).map((item) => toSearchResult(item, mediaType)),
+          parsed
+        );
+      } catch {
+        // One failed lookup shouldn't fail the whole request - the other
+        // candidate sources still fill the pool.
+        return null;
+      }
+    })
+  );
+
+  return resolved.filter((r): r is TmdbSearchResult => r !== null);
 }
 
 // Sorting by rating alone would surface obscure titles with a handful of
