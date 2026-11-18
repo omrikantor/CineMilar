@@ -9,7 +9,7 @@ import {
   genreNamesForMediaType,
 } from "@/lib/tmdb";
 import { extractTasteSignals, rankCandidates } from "@/lib/ai";
-import { mergeCandidatePools } from "@/lib/candidatePool";
+import { buildCandidatePool } from "@/lib/candidatePool";
 import {
   parseRecommendationRequestForm,
   ratingSchema,
@@ -60,12 +60,16 @@ export type CreateRequestState = {
   error?: string;
 };
 
-// 18 is the point where nothing gets discarded: getSimilarTitles below is
-// capped at 10 and discoverTitles at 8, so a cap at their sum means neither
-// source's candidates get squeezed out by the other. Still well within
-// Groq's free-tier 8,000 tokens/minute budget - measured at ~1,760 total
-// tokens for a full ranking call at 18 candidates, vs. ~1,500 at 14.
+// The pool the AI ranks is capped at 18: still well within Groq's free-tier
+// 8,000 tokens/minute budget - measured at ~1,760 total tokens for a full
+// ranking call at 18 candidates, vs. ~1,500 at 14. Most of those slots go to
+// titles found from what the user actually said they liked
+// (discoverTitles); TMDB's generic "similar" list only keeps a small
+// guaranteed minimum, plus any slots the discovery step didn't fill.
 const MAX_CANDIDATES = 18;
+const MIN_SIMILAR_CANDIDATES = 5;
+const SIMILAR_FETCH_LIMIT = 10;
+const DISCOVER_FETCH_LIMIT = MAX_CANDIDATES - MIN_SIMILAR_CANDIDATES;
 const MAX_PICKS = 6;
 const MAX_OVERVIEW_CHARS = 220;
 
@@ -101,7 +105,7 @@ export async function createRecommendationRequest(
   try {
     const [sourceDetails, similarPool] = await Promise.all([
       getTitleDetails(tmdbId, type),
-      getSimilarTitles(tmdbId, type, 10),
+      getSimilarTitles(tmdbId, type, SIMILAR_FETCH_LIMIT),
     ]);
 
     // Broaden the pool using what the user actually said they liked, not
@@ -110,13 +114,16 @@ export async function createRecommendationRequest(
     const discoveredPool = await discoverTitles(
       type,
       { genreNames: taste.genres, keywordTerms: taste.keywords },
-      8
+      DISCOVER_FETCH_LIMIT
     );
 
-    const candidatePool = mergeCandidatePools(
-      [similarPool, discoveredPool],
-      tmdbId
-    ).slice(0, MAX_CANDIDATES);
+    const candidatePool = buildCandidatePool({
+      similar: similarPool,
+      discovered: discoveredPool,
+      sourceTmdbId: tmdbId,
+      maxCandidates: MAX_CANDIDATES,
+      minSimilar: MIN_SIMILAR_CANDIDATES,
+    });
     const candidateById = new Map(candidatePool.map((c) => [c.tmdbId, c]));
 
     if (candidatePool.length === 0) {
@@ -133,6 +140,7 @@ export async function createRecommendationRequest(
         title: c.title,
         year: c.year,
         overview: truncateOverview(c.overview),
+        fromDescription: c.fromDescription,
       })),
       maxPicks: MAX_PICKS,
     });

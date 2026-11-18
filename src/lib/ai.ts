@@ -186,6 +186,8 @@ export type RankCandidate = {
   title: string;
   year: string | null;
   overview: string;
+  /** true = found by searching for what the user described; false = only TMDB-"similar" to the source title. */
+  fromDescription: boolean;
 };
 
 const rankedPickSchema = z.object({
@@ -200,7 +202,7 @@ const rankedPicksResponseSchema = z.object({
 });
 
 const RANKING_SYSTEM_PROMPT =
-  "You are a sharp, opinionated film/TV critic helping a friend find their next watch. The candidate list mixes titles that are only broadly similar to the source title with titles that match specific things the user described liking - when ranking, prioritize the latter over the former. Write specific, personalized reasons a recommendation fits - never generic plot summaries. Every explanation must explicitly connect something the user said they liked to a concrete element of the candidate (a character dynamic, a plot mechanic, a tone, a specific moment-type), not just restate the candidate's premise. If a candidate is only a weak or surface-level match, say so honestly rather than forcing a generic-sounding fit.";
+  "You are a sharp, opinionated film/TV critic helping a friend find their next watch. What the user said they liked is the primary criterion; the source title is only background. Each candidate is tagged: [DESCRIBED] means it was found by searching for the specific themes the user described, while [SIMILAR] means TMDB only considers it broadly similar to the source title. Prefer [DESCRIBED] candidates, and pick a [SIMILAR] one only when it clearly fits what the user said. Write specific, personalized reasons a recommendation fits - never generic plot summaries. Every explanation must explicitly connect something the user said they liked to a concrete element of the candidate (a character dynamic, a plot mechanic, a tone, a specific moment-type), not just restate the candidate's premise. If a candidate is only a weak or surface-level match, say so honestly rather than forcing a generic-sounding fit.";
 
 /**
  * Ranks and explains a real candidate pool against the user's reasoning.
@@ -225,7 +227,7 @@ export async function rankCandidates({
   const candidateList = candidates
     .map(
       (c) =>
-        `- id: ${c.tmdbId}, title: "${c.title}" (${c.year ?? "n/a"}), overview: ${c.overview}`
+        `- [${c.fromDescription ? "DESCRIBED" : "SIMILAR"}] id: ${c.tmdbId}, title: "${c.title}" (${c.year ?? "n/a"}), overview: ${c.overview}`
     )
     .join("\n");
 
@@ -234,7 +236,7 @@ export async function rankCandidates({
 Here's what they said they liked about it:
 "${reasoning}"
 
-Below is a list of real candidate titles. Pick the best ${maxPicks} matches for this user, ranked best-first, and explain in one short sentence each why it matches what they described. You MUST only choose ids that appear in this list - never invent a title or use an id that isn't listed.
+Below is a list of real candidate titles. Pick the best ${maxPicks} matches for this user, judging each candidate against what they said they liked first (not just how similar it is to "${sourceTitle}"), ranked best-first, and explain in one short sentence each why it matches what they described. You MUST only choose ids that appear in this list - never invent a title or use an id that isn't listed.
 
 Candidates:
 ${candidateList}

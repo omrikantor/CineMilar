@@ -1,5 +1,6 @@
 import "server-only";
 import type { MediaType } from "@/types/database";
+import { mergeCandidatePools } from "@/lib/candidatePool";
 
 const TMDB_API_BASE = "https://api.themoviedb.org/3";
 const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p";
@@ -169,9 +170,37 @@ async function searchKeywordIds(term: string): Promise<number[]> {
   return results.slice(0, 3).map((k) => k.id);
 }
 
+// Sorting by rating alone would surface obscure titles with a handful of
+// votes, so require a minimum number of votes (TV shows collect fewer).
+const MIN_VOTE_COUNT: Record<MediaType, string> = { movie: "100", tv: "50" };
+
+async function discoverRaw(
+  mediaType: MediaType,
+  filters: Record<string, string>
+): Promise<TmdbSearchResult[]> {
+  const endpoint = mediaType === "movie" ? "/discover/movie" : "/discover/tv";
+  const data = await tmdbFetch(endpoint, {
+    sort_by: "vote_average.desc",
+    "vote_count.gte": MIN_VOTE_COUNT[mediaType],
+    ...filters,
+  });
+  const results: TmdbRawItem[] = data.results ?? [];
+  return results.map((item) => toSearchResult(item, mediaType));
+}
+
 /**
  * Finds additional real candidates using genres/keywords extracted from the
  * user's own reasoning, rather than only titles similar to the source movie.
+ *
+ * Each keyword the user's reasoning produced gets its own search, so every
+ * theme they mentioned contributes candidates (OR-ing them all into one
+ * query let one broad keyword drown out the specific ones). The genres form
+ * one more search that requires ALL the genres at once, falling back to ANY
+ * of them if that's too narrow to return anything. Results are interleaved
+ * across those searches and ranked by rating (above a minimum vote count)
+ * rather than raw popularity, which mostly returned generic blockbusters.
+ * A failed individual search just contributes nothing - the caller still
+ * has TMDB's "similar" titles to fall back on.
  */
 export async function discoverTitles(
   mediaType: MediaType,
@@ -179,27 +208,36 @@ export async function discoverTitles(
   limit = 15
 ): Promise<TmdbSearchResult[]> {
   const genreIds = genreIdsFromNames(options.genreNames ?? [], mediaType);
+  const keywordTerms = options.keywordTerms ?? [];
 
-  let keywordIds: number[] = [];
-  if (options.keywordTerms?.length) {
-    const idsPerTerm = await Promise.all(
-      options.keywordTerms.map((term) => searchKeywordIds(term))
+  const keywordIdsPerTerm = await Promise.all(
+    keywordTerms.map((term) => searchKeywordIds(term).catch(() => []))
+  );
+
+  const searches: Promise<TmdbSearchResult[]>[] = keywordIdsPerTerm
+    .filter((ids) => ids.length > 0)
+    .map((ids) =>
+      discoverRaw(mediaType, { with_keywords: ids.join("|") }).catch(() => [])
     );
-    keywordIds = Array.from(new Set(idsPerTerm.flat()));
+
+  if (genreIds.length > 0) {
+    searches.push(
+      discoverRaw(mediaType, { with_genres: genreIds.join(",") })
+        .then((all) =>
+          all.length > 0 || genreIds.length === 1
+            ? all
+            : discoverRaw(mediaType, { with_genres: genreIds.join("|") })
+        )
+        .catch(() => [])
+    );
   }
 
-  if (genreIds.length === 0 && keywordIds.length === 0) {
+  if (searches.length === 0) {
     return [];
   }
 
-  const endpoint = mediaType === "movie" ? "/discover/movie" : "/discover/tv";
-  const params: Record<string, string> = { sort_by: "popularity.desc" };
-  if (genreIds.length) params.with_genres = genreIds.join("|");
-  if (keywordIds.length) params.with_keywords = keywordIds.join("|");
-
-  const data = await tmdbFetch(endpoint, params);
-  const results: TmdbRawItem[] = data.results ?? [];
-  return results.slice(0, limit).map((item) => toSearchResult(item, mediaType));
+  const pools = await Promise.all(searches);
+  return mergeCandidatePools(pools).slice(0, limit);
 }
 
 export function tmdbPosterUrl(
