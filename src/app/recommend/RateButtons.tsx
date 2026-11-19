@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { rateRecommendation } from "./actions";
+import { ThumbDownIcon, ThumbUpIcon } from "@/components/Icons";
 import type { MediaType } from "@/types/database";
 
 export function RateButtons({
@@ -44,26 +45,24 @@ export function RateButtons({
   }
 
   return (
-    <div className="mt-3 flex gap-2">
+    <div className="mt-4 flex flex-wrap gap-2">
       <button
         type="button"
         disabled={isPending}
         onClick={() => handleRate(1)}
         aria-pressed={rating === 1}
-        className={rating === 1 ? "chip-active" : "chip"}
-        style={rating === 1 ? { backgroundColor: "#16a34a" } : undefined}
+        className="rate-btn rate-like"
       >
-        👍 Like
+        <ThumbUpIcon /> Like
       </button>
       <button
         type="button"
         disabled={isPending}
         onClick={() => handleRate(-1)}
         aria-pressed={rating === -1}
-        className={rating === -1 ? "chip-active" : "chip"}
-        style={rating === -1 ? { backgroundColor: "#dc2626" } : undefined}
+        className="rate-btn rate-dislike"
       >
-        👎 Not for me
+        <ThumbDownIcon /> Not for me
       </button>
     </div>
   );

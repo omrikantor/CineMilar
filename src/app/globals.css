@@ -1,95 +1,452 @@
 @import "tailwindcss";
 
+/* ------------------------------------------------------------------ */
+/* Design tokens - "cinema": warm black, antique gold, velvet red      */
+/* ------------------------------------------------------------------ */
 :root {
-  --background: #faf9fc;
-  --foreground: #171123;
-  --surface: #ffffff;
-  --border: #e6e1ee;
-  --muted: #6b6478;
-  --accent: #7c3aed;
-  --accent-hover: #6d28d9;
-  --accent-foreground: #ffffff;
+  color-scheme: dark;
+
+  --background: #0c0a09;
+  --foreground: #f3ebde;
+  --surface: #16120f;
+  --surface-2: #1f1a15;
+  --border: #2d261f;
+  --border-strong: #433a2f;
+  --muted: #a89d8c;
+
+  --accent: #d4a84b;
+  --accent-hover: #e8c36f;
+  --accent-foreground: #1a1206;
+  --accent-soft: #2a2113;
+
+  --velvet: #8a1a2c;
+  --velvet-deep: #4a0b16;
+
+  --success: #6fcf8e;
+  --success-soft: #13251a;
+  --danger: #ee7468;
+  --danger-soft: #2b1412;
+
+  --glow: rgb(212 168 75 / 0.13);
+  --elev-1: 0 1px 2px rgb(0 0 0 / 0.5), 0 10px 28px -10px rgb(0 0 0 / 0.65);
+  --elev-2: 0 2px 6px rgb(0 0 0 / 0.55), 0 24px 48px -16px rgb(212 168 75 / 0.25);
+  --gradient-brand: linear-gradient(135deg, #f4d58a 0%, #d4a84b 48%, #a97620 100%);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
   --color-accent-foreground: var(--accent-foreground);
+  --color-accent-soft: var(--accent-soft);
+  --color-velvet: var(--velvet);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --shadow-card: var(--elev-1);
+  --shadow-lift: var(--elev-2);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-playfair);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #14111d;
-    --foreground: #f1eef7;
-    --surface: #1c1829;
-    --border: #322b45;
-    --muted: #a79fbb;
-    --accent: #a78bfa;
-    --accent-hover: #c4b5fd;
-    --accent-foreground: #1c1829;
-  }
+/* ------------------------------------------------------------------ */
+/* Base                                                                */
+/* ------------------------------------------------------------------ */
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
+  /* A warm light spilling from the top, plus a faint velvet glow low down. */
+  background-image:
+    radial-gradient(64rem 30rem at 50% -10rem, var(--glow), transparent 70%),
+    radial-gradient(40rem 26rem at 100% 100%, rgb(138 26 44 / 0.16), transparent 70%);
+  background-repeat: no-repeat;
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
+/* Film grain over the whole page: a tiny tiled noise image, barely visible,
+   that takes the "flat digital" edge off the dark background. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0.09;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.7 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+@layer base {
+  h1,
+  h2 {
+    font-family: var(--font-display), Georgia, "Times New Roman", serif;
+  }
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Animations                                                          */
+/* ------------------------------------------------------------------ */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--tilt, 0deg));
+  }
+  50% {
+    transform: translateY(-8px) rotate(var(--tilt, 0deg));
+  }
+}
+
+@keyframes reel {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes beam-breathe {
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-float {
+  animation: float-slow 7s ease-in-out infinite;
+}
+
+/* ------------------------------------------------------------------ */
+/* Cinema decorations                                                  */
+/* ------------------------------------------------------------------ */
+
+/* A projector's cone of light falling from the top of the page. */
+.projector-beam {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 640px;
+  pointer-events: none;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 35%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 35%, transparent 100%);
+}
+.projector-beam::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: conic-gradient(
+    from 180deg at 50% -4%,
+    transparent 158deg,
+    rgb(255 224 150 / 0.05) 166deg,
+    rgb(255 224 150 / 0.14) 180deg,
+    rgb(255 224 150 / 0.05) 194deg,
+    transparent 202deg
+  );
+  filter: blur(14px);
+  animation: beam-breathe 8s ease-in-out infinite;
+}
+
+/* A strip of film with sprocket holes, its frames drifting past slowly. */
+.film-strip {
+  background-color: #080605;
+  border-block: 1px solid var(--border);
+  overflow: hidden;
+}
+.film-strip-holes {
+  height: 16px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='46' height='16'%3E%3Crect x='15' y='4' width='16' height='8' rx='2.5' fill='%23f3ebde' fill-opacity='0.8'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-size: 46px 16px;
+}
+.film-strip-track {
+  display: flex;
+  width: max-content;
+  gap: 8px;
+  padding-inline: 4px;
+  animation: reel 60s linear infinite;
+}
+.film-frame {
+  height: 88px;
+  width: 140px;
+  flex: none;
+  border-radius: 3px;
+  box-shadow: inset 0 0 22px rgb(0 0 0 / 0.55);
+}
+
+/* A theatre curtain: deep red velvet with vertical folds and a stage light. */
+.curtain {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(60% 55% at 50% 38%, rgb(255 214 140 / 0.22), transparent 70%),
+    repeating-linear-gradient(
+      90deg,
+      var(--velvet-deep) 0px,
+      #7d1627 22px,
+      var(--velvet-deep) 44px
+    );
+}
+.curtain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgb(0 0 0 / 0.45), transparent 30%, rgb(0 0 0 / 0.55));
+}
+
+/* ------------------------------------------------------------------ */
+/* Components                                                          */
+/* ------------------------------------------------------------------ */
 @layer components {
+  /* Buttons */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50;
-    background-color: var(--accent);
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition duration-200 disabled:cursor-not-allowed disabled:opacity-50;
+    background-image: linear-gradient(180deg, #e9c46f, #cf9f3f);
+    color: var(--accent-foreground);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.35),
+      0 1px 2px rgb(0 0 0 / 0.5),
+      0 8px 20px -8px rgb(212 168 75 / 0.55);
   }
   .btn-primary:hover:not(:disabled) {
-    background-color: var(--accent-hover);
+    background-image: linear-gradient(180deg, #f2d284, #d9aa4b);
+    transform: translateY(-1px);
   }
+  .btn-primary:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
-    background-color: var(--surface);
-    border-color: var(--border);
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-semibold transition duration-200 disabled:cursor-not-allowed disabled:opacity-50;
+    background-color: transparent;
+    border-color: var(--border-strong);
+    color: var(--foreground);
   }
+  .btn-secondary:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+    background-color: var(--accent-soft);
+  }
+
   .btn-ghost {
-    @apply inline-flex items-center gap-1 text-sm font-medium transition-colors;
+    @apply inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors;
     color: var(--muted);
   }
   .btn-ghost:hover {
-    color: var(--accent);
+    color: var(--foreground);
+    background-color: var(--surface-2);
   }
 
+  /* Form fields */
   .field {
-    @apply flex flex-col gap-1.5 text-sm font-medium;
+    @apply flex flex-col gap-2 text-sm font-medium;
   }
   .field-input {
-    @apply rounded-lg border px-3 py-2 text-sm outline-none transition-colors;
-    background-color: var(--surface);
-    border-color: var(--border);
+    @apply w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition;
+    background-color: var(--background);
+    border-color: var(--border-strong);
     color: var(--foreground);
+  }
+  .field-input::placeholder {
+    color: var(--muted);
+    opacity: 0.65;
+  }
+  .field-input:hover {
+    border-color: var(--accent);
   }
   .field-input:focus {
     border-color: var(--accent);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent);
   }
 
+  /* Surfaces */
   .card {
-    @apply rounded-xl border p-4 shadow-sm;
+    @apply rounded-2xl border p-5;
     background-color: var(--surface);
     border-color: var(--border);
+    box-shadow: var(--elev-1);
+  }
+  .card-interactive {
+    @apply transition duration-200;
+  }
+  .card-interactive:hover {
+    transform: translateY(-2px);
+    border-color: color-mix(in srgb, var(--accent) 70%, var(--border));
+    box-shadow: var(--elev-2);
   }
 
-  .chip {
-    @apply rounded-full px-3 py-1.5 text-sm font-medium transition-colors;
-    border: 1px solid var(--border);
+  /* Small labels */
+  .eyebrow {
+    @apply text-xs font-semibold tracking-[0.18em] uppercase;
+    color: var(--accent);
+  }
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
+    background-color: var(--surface-2);
     color: var(--muted);
   }
-  .chip-active {
-    @apply rounded-full border border-transparent px-3 py-1.5 text-sm font-medium transition-colors;
-    background-color: var(--accent);
-    color: var(--accent-foreground);
+  .badge-accent {
+    background-color: var(--accent-soft);
+    color: var(--accent);
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  }
+
+  /* Segmented control (movie / TV) */
+  .segmented {
+    @apply inline-flex rounded-xl border p-1;
+    background-color: var(--background);
+    border-color: var(--border-strong);
+  }
+  .segmented-item {
+    @apply inline-flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-medium transition;
+    color: var(--muted);
+  }
+  .segmented-item:hover {
+    color: var(--foreground);
+  }
+  .segmented-item[aria-pressed="true"] {
+    background-color: var(--accent-soft);
+    color: var(--accent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+  }
+
+  /* Chips (suggestion pills) */
+  .chip {
+    @apply rounded-full border px-3 py-1 text-xs font-medium transition;
+    border-color: var(--border-strong);
+    color: var(--muted);
+    background-color: transparent;
+  }
+  .chip:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background-color: var(--accent-soft);
+  }
+
+  /* Like / dislike buttons */
+  .rate-btn {
+    @apply inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium transition disabled:cursor-wait disabled:opacity-60;
+    border-color: var(--border-strong);
+    color: var(--muted);
+    background-color: transparent;
+  }
+  .rate-btn:hover:not(:disabled) {
+    color: var(--foreground);
+    border-color: var(--foreground);
+  }
+  .rate-btn[aria-pressed="true"].rate-like {
+    background-color: var(--success-soft);
+    border-color: var(--success);
+    color: var(--success);
+  }
+  .rate-btn[aria-pressed="true"].rate-dislike {
+    background-color: var(--danger-soft);
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+
+  /* Inline notices */
+  .notice {
+    @apply flex items-start gap-2.5 rounded-xl border px-3.5 py-3 text-sm;
+  }
+  .notice-error {
+    background-color: var(--danger-soft);
+    border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+    color: var(--danger);
+  }
+  .notice-success {
+    background-color: var(--success-soft);
+    border-color: color-mix(in srgb, var(--success) 40%, transparent);
+    color: var(--success);
+  }
+
+  /* Loading skeleton */
+  .skeleton {
+    @apply rounded-xl;
+    background-color: var(--surface-2);
+    background-image: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      transparent
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s linear infinite;
+  }
+
+  /* Brand */
+  .bg-brand-gradient {
+    background-image: var(--gradient-brand);
+  }
+  .text-gradient {
+    background-image: var(--gradient-brand);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
 }
